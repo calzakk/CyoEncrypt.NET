@@ -21,7 +21,7 @@ namespace CyoEncrypt
             public const int IvSize = BlockSize;
             public const int KeySize = 32;
             public const int KeySizeInBits = KeySize * 8;
-            public const int Iterations = 100;
+            public const int Iterations = 1000;
             public const Crypto_CipherMode CipherMode = Crypto_CipherMode.CBC;
             public const Crypto_PaddingMode PaddingMode = Crypto_PaddingMode.PKCS7;
         }
