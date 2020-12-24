@@ -102,13 +102,6 @@ namespace CyoEncrypt
             {
                 throw new CryptoException($"Unable to {(isEncrypted ? "decrypt" : "encrypt")} file: {ex.Message}");
             }
-
-            long expectedLength = isEncrypted
-                ? plaintextLength
-                : ((plaintextLength + Constants.BlockSize) / Constants.BlockSize) * Constants.BlockSize; //plus a final block
-
-            if (output.Length != expectedLength)
-                throw new CryptoException($"{(isEncrypted ? "Decrypted" : "Encrypted")} file has unexpected length {output.Length}, expected {expectedLength}");
         }
     }
 }

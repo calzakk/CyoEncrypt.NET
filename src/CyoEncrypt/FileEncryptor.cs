@@ -50,9 +50,11 @@ namespace CyoEncrypt
 
             var header = GetOrCreateHeader(input, output, isEncrypted, fileLength);
 
-            var cryptoTransform = isEncrypted ? aes.CreateEncryptor() : aes.CreateDecryptor();
+            var cryptoTransform = isEncrypted ? aes.CreateDecryptor() : aes.CreateEncryptor();
 
             await Crypto.Transform(input, output, isEncrypted, header.FileLength, cryptoTransform);
+
+            ValidateOutputLength(output, isEncrypted, header);
 
             Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
         }
@@ -65,6 +67,23 @@ namespace CyoEncrypt
             var header = new FileHeader { FileLength = fileLength };
             header.Write(output);
             return header;
+        }
+
+        private static void ValidateOutputLength(Stream output, bool isEncrypted, FileHeader header)
+        {
+            long expectedLength;
+
+            if (isEncrypted)
+                expectedLength = header.FileLength;
+            else
+            {
+                var headerSize = FileHeader.Constants.HeaderLength;
+                var blockSize = Crypto.Constants.BlockSize;
+                expectedLength = headerSize + blockSize * ((header.FileLength / blockSize) + 1); //+1 because there's always an extra block
+            }
+
+            if (output.Length != expectedLength)
+                throw new Exception($"{(isEncrypted ? "Decrypted" : "Encrypted")} file has unexpected length {output.Length}, expected {expectedLength}");
         }
 
         private static void DeleteFile(string pathname)
