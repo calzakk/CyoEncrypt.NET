@@ -69,22 +69,22 @@ namespace CyoEncrypt
             aes.Key = CreateKey(password, salt);
 
             if (aes.KeySize != Constants.KeySizeInBits)
-                throw new AesException("Unexpected key size");
+                throw new CryptoException("Unexpected key size");
             var maxKeySize = aes.LegalKeySizes[0].MaxSize;
             if (aes.KeySize != maxKeySize)
-                throw new AesException("Not using maximum key size");
+                throw new CryptoException("Not using maximum key size");
 
             if (aes.BlockSize != Constants.BlockSizeInBits)
-                throw new AesException("Unexpected block size");
+                throw new CryptoException("Unexpected block size");
             var maxBlockSize = aes.LegalBlockSizes[0].MaxSize;
             if (aes.BlockSize != maxBlockSize)
-                throw new AesException("Not using maximum block size");
+                throw new CryptoException("Not using maximum block size");
 
             if (aes.Mode != Constants.CipherMode)
-                throw new AesException("Not using CBC mode");
+                throw new CryptoException("Not using CBC mode");
 
             if (aes.Padding != Constants.PaddingMode)
-                throw new AesException("Not using PKCS #7 padding");
+                throw new CryptoException("Not using PKCS #7 padding");
 
             return aes;
         }
