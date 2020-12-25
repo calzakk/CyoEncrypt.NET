@@ -44,22 +44,28 @@ namespace CyoEncrypt
 
         public static FileHeader Parse(Stream stream)
         {
-            var binaryReader = new BinaryReader(stream);
-
-            var header = new FileHeader
+            try
             {
-                Preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length)),
-                VersionMajor = binaryReader.ReadUInt16(),
-                VersionMinor = binaryReader.ReadUInt16(),
-                FileLength = binaryReader.ReadInt64(),
-                Reserved = binaryReader.ReadUInt64(),
-                Sentinel = new string(binaryReader.ReadChars(Constants.Sentinel.Length))
-            };
+                using var binaryReader = new BinaryReader(stream);
 
-            if (!Validate(header))
-                throw new FileHeaderException("File header is invalid or corrupt");
+                var header = new FileHeader
+                {
+                    Preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length)),
+                    VersionMajor = binaryReader.ReadUInt16(),
+                    VersionMinor = binaryReader.ReadUInt16(),
+                    FileLength = binaryReader.ReadInt64(),
+                    Reserved = binaryReader.ReadUInt64(),
+                    Sentinel = new string(binaryReader.ReadChars(Constants.Sentinel.Length))
+                };
 
-            return header;
+                if (Validate(header))
+                    return header;
+            }
+            catch
+            {
+            }
+
+            throw new FileHeaderException("File header is invalid or corrupt");
         }
 
         private static bool Validate(FileHeader header)
