@@ -90,18 +90,18 @@ namespace UnitTests
         }
 
         [Theory]
-        [InlineData(0, "6UWXdE/L38fJliPkNdr1X75R0ge2y5Y5WDft/v9oVRs=")]
-        [InlineData(1, "DvJkFKKAkI7g8Xkc1a94obw+WfFAP9+l76A5XRfpPV8=")]
-        [InlineData(2, "MJWxw2ufBLVEQRiFDvF/etHEBO2uaL4Kc4WdXHGpgYo=")]
-        [InlineData(4, "WjqCvayjH9C6YQogsJ29kegRieT/5Y6Rs3c5O9DLEoA=")]
-        [InlineData(8, "RA7a1E9SxiqkW2KbFzQof6G2qkc3TdLu43N7vYXIfo4=")]
-        [InlineData(16, "dc4tkuBzkANtNfBERvYA93KhBOz9zhsyzHMkEQVRmEM=")]
-        [InlineData(32, "ipukZNVWgO37aOXhdAosD5zRrVI2yf99XGuamZVLEUg=")]
-        [InlineData(64, "DXgkb+l257guCJTbnM90eS7/ka6KCWzb2vzJSCPSddo=")]
+        [InlineData(0, "FrLvItpaGXumVR/96FhdX92sVLYi5u6xwLk2TVQDaoY=")]
+        [InlineData(1, "8N33uOkddVjaYo+sLB/GmDsi6iNQ232odsv0uvluKJQ=")]
+        [InlineData(2, "H4GPa5iZiSYKzpvjHXaf92WCvlaKPiC+Mr0X3Fi7kyU=")]
+        [InlineData(4, "Ll9SZeTqs9NFOttvq+B9k+IIXrOveFbGTZi8jBNKoI0=")]
+        [InlineData(8, "U4nceg95JlvJvRLEp0Laf5nwfVnofXhRQ+woUHW7hi8=")]
+        [InlineData(16, "U9QDhMqPJ2xZw9gbrtqReV0aPA93AQNQrUXTsMN7MQ4=")]
+        [InlineData(32, "X3hwy42Oap1E62NRG0pXPr8cRRdsdCYw8xi8E728xoM=")]
+        [InlineData(64, "oQgOeLQUDyTkDFNaMzkvYw/Hz2t9j/hbZUgeW1GmBnA=")]
         public async Task WhenPlaintextIsEncrypted_ThenHashedCiphertextShouldMatchExpectedHash(int numBlocks, string expectedHash)
         {
             var password = Enumerable.Range(0, 1024).Select(x => (byte)x).ToArray();
-            var salt = Enumerable.Range(1024, 2048).Select(x => (byte)x).ToArray();
+            var salt = Enumerable.Range(0, 1024).Select(x => (byte)(x * 3)).ToArray();
             var aes = Crypto.CreateAes(password, salt);
 
             var plaintextLength = Crypto.Constants.BlockSize * numBlocks;
