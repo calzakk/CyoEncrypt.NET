@@ -9,15 +9,41 @@ CyoEncrypt.NET is an easy-to-use command-line file encryptor.
 - Files are encrypted using AES
 - Encrypted files are identified with an extension of ".encrypted"
 
-## Usage
+## Setup
 
 First, download and install the .NET 5.0 SDK:
 
 https://dotnet.microsoft.com/download
 
-To build a standalone executable:
+### Linux
 
-TODO
+    cd src
+    ./test.sh
+    ./publish.sh
+
+    mkdir $HOME/bin
+    cp pub/* $HOME/bin
+    cd $HOME/bin
+    ln -s CyoEncrypt cyoencrypt
+    ln -s CyoEncrypt ce
+
+The symbolic links are optional but recommended. Ensure $HOME/bin is in the PATH; this might already be configured in $HOME/.profile or $HOME/.bashrc.
+
+### Windows
+
+    cd src
+    test.bat
+    publish.bat
+
+Copy the contents of the *pub* subfolder to a folder that's in your PATH environment variable.
+
+## Usage
+
+    cyoencrypt pathname [password] [--no-confirm]
+
+If the password isn't passed on the command line, then the user is prompted to type it.
+
+If --no-confirm is specified, then the user isn't prompted to confirm the password.
 
 ## To Do
 
