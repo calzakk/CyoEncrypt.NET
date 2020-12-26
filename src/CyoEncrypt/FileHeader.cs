@@ -46,7 +46,7 @@ namespace CyoEncrypt
         {
             try
             {
-                using var binaryReader = new BinaryReader(stream);
+                var binaryReader = new BinaryReader(stream);
 
                 var header = new FileHeader
                 {
