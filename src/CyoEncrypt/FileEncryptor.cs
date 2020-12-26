@@ -90,8 +90,7 @@ namespace CyoEncrypt
         {
             try
             {
-                Console.WriteLine("TODO: DELETE ORIGINAL FILE"); //TEMP
-                //File.Delete(pathname);
+                File.Delete(pathname);
             }
             catch (Exception ex)
             {
