@@ -11,11 +11,31 @@ CyoEncrypt.NET is an easy-to-use command-line file encryptor.
 
 ## Setup
 
-First, download and install the .NET 5.0 SDK:
+### Windows
 
-https://dotnet.microsoft.com/download
+Download and install the .NET 5.0 SDK: https://dotnet.microsoft.com/download
+
+Now execute:
+
+    cd src
+    test.bat
+    publish.bat
+
+Copy the contents of the *pub* subfolder to a folder that's accessible to your PATH.
 
 ### Linux
+
+Install the .NET 5.0 SDK, by following the instructions for your distribution: https://docs.microsoft.com/en-us/dotnet/core/install/linux
+
+If your package manager doesn't include it, the .NET SDK can be installed via Snap: https://snapcraft.io/dotnet-sdk
+
+Add this line to $HOME/.profile or $HOME/.bashrc:
+
+    export DOTNET_ROOT=/var/lib/snapd/snap/dotnet-sdk/current
+
+Logout, then log back in.
+
+Now setup CyoEncrypt using:
 
     cd src
     ./test.sh
@@ -28,14 +48,6 @@ https://dotnet.microsoft.com/download
     ln -s CyoEncrypt ce
 
 The symbolic links are optional but recommended. Ensure $HOME/bin is in the PATH; this might already be configured in $HOME/.profile or $HOME/.bashrc.
-
-### Windows
-
-    cd src
-    test.bat
-    publish.bat
-
-Copy the contents of the *pub* subfolder to a folder that's in your PATH environment variable.
 
 ## Usage
 
