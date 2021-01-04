@@ -68,7 +68,7 @@ If --no-confirm is specified, then the user isn't prompted to confirm the passwo
 
 The MIT License (MIT)
 
-Copyright (c) 2020 Graham Bull
+Copyright (c) 2020-2021 Graham Bull
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

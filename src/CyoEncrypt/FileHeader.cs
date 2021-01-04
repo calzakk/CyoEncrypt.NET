@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020 Graham Bull
+// Copyright (c) 2020-2021 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@ namespace CyoEncrypt
     {
         public static class Constants
         {
+            public const string ErrorCorrupt = "File header is invalid or corrupt";
             public const int HeaderLength = 28;
             public const string Preamble = "CYO\0";
             public const ushort VersionMajor = 3;
@@ -68,11 +69,18 @@ namespace CyoEncrypt
 
         public static FileHeader Parse(Stream stream)
         {
+            var header = ParseHeader(stream);
+            ValidateHeader(header);
+            return header;
+        }
+
+        private static FileHeader ParseHeader(Stream stream)
+        {
             try
             {
                 var binaryReader = new BinaryReader(stream);
 
-                var header = new FileHeader
+                return new FileHeader
                 {
                     Preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length)),
                     VersionMajor = binaryReader.ReadUInt16(),
@@ -81,35 +89,45 @@ namespace CyoEncrypt
                     Reserved = binaryReader.ReadUInt64(),
                     Sentinel = new string(binaryReader.ReadChars(Constants.Sentinel.Length))
                 };
-
-                if (Validate(header))
-                    return header;
             }
             catch
             {
+                throw new FileHeaderException(Constants.ErrorCorrupt);
             }
-
-            throw new FileHeaderException("File header is invalid or corrupt");
         }
 
-        private static bool Validate(FileHeader header)
+        private static void ValidateHeader(FileHeader header)
         {
             if (!header.Preamble.SequenceEqual(Constants.Preamble))
-                return false;
+                throw new FileHeaderException(Constants.ErrorCorrupt);
 
             if (header.VersionMajor != Constants.VersionMajor)
-                throw new FileHeaderException($"Unsupported version: {header.VersionMajor}.{header.VersionMinor}");
+            {
+                var major = header.VersionMajor;
+                var minor = header.VersionMinor;
+                if (major >= 0x100)
+                {
+                    major = ConvertToLittleEndian(major);
+                    minor = ConvertToLittleEndian(minor);
+                }
+                throw new FileHeaderException($"Unsupported version: {major}.{minor}");
+            }
 
             if (header.FileLength < 0)
-                return false;
+                throw new FileHeaderException(Constants.ErrorCorrupt);
 
             if (header.Reserved != Constants.Reserved)
-                return false;
+                throw new FileHeaderException(Constants.ErrorCorrupt);
 
             if (!header.Sentinel.SequenceEqual(Constants.Sentinel))
-                return false;
+                throw new FileHeaderException(Constants.ErrorCorrupt);
+        }
 
-            return true;
+        private static ushort ConvertToLittleEndian(ushort bigEndian)
+        {
+            var high = (bigEndian >> 8);
+            var low = (bigEndian & 0xff);
+            return (ushort)((low << 8) | high);
         }
     }
 }
