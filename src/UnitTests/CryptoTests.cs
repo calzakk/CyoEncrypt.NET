@@ -70,7 +70,9 @@ namespace UnitTests
         {
             var password = FillBuffer(1024);
             var salt = FillBuffer(Crypto.Constants.SaltSize);
-            var aes = Crypto.CreateAes(password, salt);
+            var iv = Crypto.CreateIv(password, salt);
+            var key = Crypto.CreateKey(password, salt);
+            var aes = Crypto.CreateAes(iv, key);
 
             aes.IV.Length.Should().Be(Crypto.Constants.IvSize);
             aes.Key.Length.Should().Be(Crypto.Constants.KeySize);
@@ -91,7 +93,9 @@ namespace UnitTests
         {
             var password = FillBuffer(1024);
             var salt = FillBuffer(1024);
-            var aes = Crypto.CreateAes(password, salt);
+            var iv = Crypto.CreateIv(password, salt);
+            var key = Crypto.CreateKey(password, salt);
+            var aes = Crypto.CreateAes(iv, key);
 
             var plaintextLength = Crypto.Constants.BlockSize * numBlocks;
             var plaintextInput = FillBuffer(plaintextLength);
@@ -125,7 +129,9 @@ namespace UnitTests
         {
             var password = Enumerable.Range(0, 1024).Select(x => (byte)x).ToArray();
             var salt = Enumerable.Range(0, 1024).Select(x => (byte)(x * 3)).ToArray();
-            var aes = Crypto.CreateAes(password, salt);
+            var iv = Crypto.CreateIv(password, salt);
+            var key = Crypto.CreateKey(password, salt);
+            var aes = Crypto.CreateAes(iv, key);
 
             var plaintextLength = Crypto.Constants.BlockSize * numBlocks;
             var plaintextInput = Enumerable.Range(0, plaintextLength).Select(x => (byte)x).ToArray();

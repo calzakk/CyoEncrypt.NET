@@ -1,4 +1,4 @@
-﻿// [CyoEncrypt.NET] IEncryptor.cs
+// [CyoEncrypt.NET] IPassword.cs
 
 // The MIT License (MIT)
 
@@ -22,12 +22,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using System.Threading.Tasks;
-
 namespace CyoEncrypt
 {
-    public interface IEncryptor
+    public interface IPassword
     {
-        Task EncryptOrDecrypt(string pathname);
+        bool Reencrypt { get; }
+
+        string GetPassword(string pathname);
+
+        (byte[] iv, byte[] key) GetSavedKey(string pathname);
+
+        void SaveKey(string pathname, byte[] iv, byte[] key);
+
+        void DeleteSavedKey(string pathname);
     }
 }

@@ -86,11 +86,11 @@ namespace CyoEncrypt
             return deriver.GetBytes(Constants.KeySize);
         }
 
-        public static Aes CreateAes(byte[] password, byte[] salt)
+        public static Aes CreateAes(byte[] iv, byte[] key)
         {
             var aes = Aes.Create();
-            aes.IV = CreateIv(password, salt);
-            aes.Key = CreateKey(password, salt);
+            aes.IV = iv;
+            aes.Key = key;
 
             if (aes.KeySize != Constants.KeySizeInBits)
                 throw new CryptoException("Unexpected key size");

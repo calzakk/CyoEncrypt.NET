@@ -23,6 +23,7 @@
 // SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -33,64 +34,69 @@ namespace CyoEncrypt
         static async Task<int> Main(string[] args)
         {
             Arguments arguments;
-            var password = string.Empty;
             try
             {
                 arguments = Arguments.Parse(args);
-
-                if (arguments.Help)
-                {
-                    Console.WriteLine("Usage:\n\n"
-                        + "  CyoEncrypt <pathname> [<password>] [--no-confirm]\n"
-                        + "  CyoEncrypt <path> [<password>] [--no-confirm] [-r|--recurse] [--exclude=folder,...]");
-                    return 2;
-                }
-
-                if (string.IsNullOrEmpty(arguments.Pathname))
-                {
-                    Console.WriteLine("Missing file or folder path");
-                    return 2;
-                }
-
-                password = arguments.Password;
-                if (string.IsNullOrEmpty(password))
-                {
-                    Console.Write("Password: ");
-                    password = Console.ReadLine();
-                }
-
-                if (!arguments.NoConfirm)
-                {
-                    Console.Write("Confirm: ");
-                    var confirm = Console.ReadLine();
-                    if (password != confirm)
-                    {
-                        Console.WriteLine("Passwords do not match!");
-                        return 3;
-                    }
-                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                return 1;
+            }
+
+            if (arguments.Help)
+            {
+                Console.WriteLine("Usage:\n"
+                    + "  CyoEncrypt pathname [password] [options]\n"
+                    + "\n"
+                    + "Where:\n"
+                    + $"  pathname         Specifies a file or {_folder}.\n"
+                    + "  password         Encryption or decryption password.\n"
+                    + "\n"
+                    + "Options:\n"
+                    + "  --no-confirm     Do not confirm the password.\n"
+                    + "Options (files):\n"
+                    + "  -e, --reencrypt  Remember the decryption password for subsequent reencryption.\n"
+                    + $"Options ({_folders}):\n"
+                    + $"  -r, --recurse    Recurse into sub{_folders}.\n"
+                    + $"  --exclude={_folder},...\n"
+                    + $"                   Exclude named sub{_folders}.\n");
                 return 2;
+            }
+
+            if (string.IsNullOrEmpty(arguments.Pathname))
+            {
+                Console.WriteLine("Missing file or folder path");
+                return 1;
             }
 
             var salt = GetSalt();
 
+            var password = new Password(arguments.Password, arguments.NoConfirm, arguments.Reencrypt);
+
             var fileInfo = new FileInfo(arguments.Pathname);
-            var encryptor = fileInfo.Attributes.HasFlag(FileAttributes.Directory)
-                ? new FolderEncryptor(salt, arguments.Recurse, arguments.Exclude) as IEncryptor
-                : new FileEncryptor(salt, false);
+            var dirInfo = new DirectoryInfo(arguments.Pathname);
+            if (!fileInfo.Exists && !dirInfo.Exists)
+            {
+                Console.WriteLine($"File or {_folder} not found!");
+                return 1;
+            }
+
+            if (ArgumentsAreIncompatible(arguments, dirInfo.Exists))
+                return 1;
+
+            var encryptor = dirInfo.Exists
+                ? new FolderEncryptor(salt, password, arguments.Recurse, arguments.Exclude) as IEncryptor
+                : new FileEncryptor(salt, password, false);
 
             try
             {
-                await encryptor.EncryptOrDecrypt(arguments.Pathname, password);
+                await encryptor.EncryptOrDecrypt(arguments.Pathname);
                 return 0;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("ERROR: " + ex.Message);
+                Console.WriteLine(ex.Message);
                 return 1;
             }
         }
@@ -129,5 +135,36 @@ namespace CyoEncrypt
 
             return salt;
         }
+
+        private static bool ArgumentsAreIncompatible(Arguments arguments, bool isFolder)
+        {
+            var errors = new List<string>();
+
+            if (isFolder)
+            {
+                if (arguments.Reencrypt)
+                    errors.Add($"--reencrypt cannot be used with {_folders}");
+            }
+            else
+            {
+                if (arguments.Recurse)
+                    errors.Add("--recurse cannot be used with files");
+
+                if (!string.IsNullOrEmpty(arguments.Exclude))
+                    errors.Add("--exclude cannot be used with files");
+            }
+
+            if (errors.Count >= 1)
+            {
+                foreach (var error in errors)
+                    Console.WriteLine(error);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static readonly string _folder = OperatingSystem.IsWindows() ? "folder" : "directory";
+        private static readonly string _folders = OperatingSystem.IsWindows() ? "folders" : "directories";
     }
 }

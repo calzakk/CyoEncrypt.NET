@@ -37,37 +37,74 @@ namespace CyoEncrypt
         }
 
         private readonly byte[] _salt;
+        private readonly IPassword _password;
         private readonly bool _quiet;
 
-        public FileEncryptor(byte[] salt, bool quiet)
+        public FileEncryptor(byte[] salt, IPassword password, bool quiet)
         {
             _salt = salt;
+            _password = password;
             _quiet = quiet;
         }
 
-        public async Task EncryptOrDecrypt(string pathname, string password)
+        public async Task EncryptOrDecrypt(string pathname)
         {
             var isEncrypted = pathname.EndsWith(Constants.EncryptedExtension);
 
-            string outputPathname;
-            if (isEncrypted)
-                outputPathname = pathname.Substring(0, pathname.Length - Constants.EncryptedExtension.Length);
-            else
-                outputPathname = pathname + Constants.EncryptedExtension;
+            var basePathname = GetBasePathname(pathname, isEncrypted);
+            var outputPathname = GetOutputPathname(pathname, isEncrypted);
 
-            await TransformFile(pathname, outputPathname, password, isEncrypted);
+            byte[] iv = null;
+            byte[] key = null;
+            if (!isEncrypted && _password.Reencrypt)
+            {
+                var ivAndKey = _password.GetSavedKey(basePathname);
+                if (ivAndKey.iv != null && ivAndKey.key != null)
+                {
+                    iv = ivAndKey.iv;
+                    key = ivAndKey.key;
+                }
+            }
+            if (iv == null || key == null)
+            {
+                var password = _password.GetPassword(pathname);
+                var passwordBytes = Encoding.UTF8.GetBytes(password);
+                iv = Crypto.CreateIv(passwordBytes, _salt);
+                key = Crypto.CreateKey(passwordBytes, _salt);
+            }
+
+            await TransformFile(pathname, outputPathname, iv, key, isEncrypted);
 
             DeleteFile(pathname);
+
+            if (!isEncrypted)
+                _password.DeleteSavedKey(basePathname);
+            else if (_password.Reencrypt)
+                _password.SaveKey(basePathname, iv, key);
         }
 
-        private async Task TransformFile(string inputPathname, string outputPathname, string password, bool isEncrypted)
+        private string GetBasePathname(string pathname, bool isEncrypted)
         {
+            return isEncrypted
+                ? pathname.Substring(0, pathname.Length - Constants.EncryptedExtension.Length)
+                : pathname;
+        }
+
+        private string GetOutputPathname(string pathname, bool isEncrypted)
+        {
+            var outputPathname = isEncrypted
+                ? pathname.Substring(0, pathname.Length - Constants.EncryptedExtension.Length)
+                : pathname + Constants.EncryptedExtension;
+
             if (File.Exists(outputPathname))
                 throw new Exception($"Output file already exists: {Path.GetFileName(outputPathname)}");
 
-            var passwordBytes = Encoding.UTF8.GetBytes(password);
+            return outputPathname;
+        }
 
-            using var aes = Crypto.CreateAes(passwordBytes, _salt);
+        private async Task TransformFile(string inputPathname, string outputPathname, byte[] iv, byte[] key, bool isEncrypted)
+        {
+            using var aes = Crypto.CreateAes(iv, key);
 
             var fileLength = new FileInfo(inputPathname).Length;
 

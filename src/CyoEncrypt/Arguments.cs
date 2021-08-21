@@ -32,6 +32,7 @@ namespace CyoEncrypt
         public bool Help { get; set; } = false;
         public bool Recurse { get; set; } = false;
         public bool NoConfirm { get; set; } = false;
+        public bool Reencrypt { get; set; } = false;
         public string Pathname { get; set; } = null;
         public string Password { get; set; } = null;
         public string Exclude { get; set; } = null;
@@ -70,6 +71,12 @@ namespace CyoEncrypt
                 if (MatchArg(larg, "exclude", out var exclude))
                 {
                     arguments.Exclude = exclude;
+                    continue;
+                }
+
+                if (MatchArg(larg, "reencrypt", 'e'))
+                {
+                    arguments.Reencrypt = true;
                     continue;
                 }
 

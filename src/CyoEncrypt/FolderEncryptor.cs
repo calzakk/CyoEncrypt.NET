@@ -34,17 +34,19 @@ namespace CyoEncrypt
     public class FolderEncryptor : IEncryptor
     {
         private readonly byte[] _salt;
+        private readonly IPassword _password;
         private readonly bool _recurse;
         private readonly string[] _exclude;
 
-        public FolderEncryptor(byte[] salt, bool recurse, string exclude)
+        public FolderEncryptor(byte[] salt, IPassword password, bool recurse, string exclude)
         {
             _salt = salt;
+            _password = password;
             _recurse = recurse;
             _exclude = exclude?.Split(',');
         }
 
-        public async Task EncryptOrDecrypt(string pathname, string password)
+        public async Task EncryptOrDecrypt(string pathname)
         {
             var files = GetFiles(pathname);
             if (files.Count == 0)
@@ -55,7 +57,7 @@ namespace CyoEncrypt
 
             var encrypting = EnsureNoFileIsEncrypted(files);
 
-            await EncryptOrDecryptFiles(files, password, encrypting);
+            await EncryptOrDecryptFiles(files, encrypting);
         }
 
         private IReadOnlyList<string> GetFiles(string pathname)
@@ -97,9 +99,9 @@ namespace CyoEncrypt
             return plaintext;
         }
 
-        private async Task EncryptOrDecryptFiles(IEnumerable<string> files, string password, bool encrypting)
+        private async Task EncryptOrDecryptFiles(IEnumerable<string> files, bool encrypting)
         {
-            var fileEncryptor = new FileEncryptor(_salt, true);
+            var fileEncryptor = new FileEncryptor(_salt, _password, true);
             var remaining = files.Count();
             var completed = 0;
             var errors = new List<string>();
@@ -109,7 +111,7 @@ namespace CyoEncrypt
             {
                 try
                 {
-                    await fileEncryptor.EncryptOrDecrypt(file, password);
+                    await fileEncryptor.EncryptOrDecrypt(file);
                     ++completed;
                 }
                 catch
