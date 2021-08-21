@@ -102,6 +102,9 @@ namespace CyoEncrypt
             if (abbr.Any(a => arg == $"-{a}"))
                 return true;
 
+            if (OperatingSystem.IsWindows() && abbr.Any(a => arg == $"/{a}"))
+                return true;
+
             return false;
         }
 
