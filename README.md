@@ -51,15 +51,24 @@ The symbolic links are optional but recommended. Ensure $HOME/bin is in the PATH
 
 ## Usage
 
+Encrypt or decrypt a single file:
+
     cyoencrypt pathname [password] [--no-confirm]
+
+Encrypt or decrypt the files within a folder:
+
+    cyoencrypt path [password] [--no-confirm] [-r|--recurse] [--exclude=folder,...]
 
 If the password isn't passed on the command line, then the user is prompted to type it.
 
 If --no-confirm is specified, then the user isn't prompted to confirm the password.
 
+When specifying a folder, certain subfolders can be excluded via the --exclude argument, for example:
+
+    --exclude=obj,node_modules
+
 ## To Do
 
-- Recursive encryption (and decryption) of folders
 - Securely overwrite original plaintext file once encrypted
 - Ability to easily manually re-encrypt a file
 - Ability to automatically re-encrypt a file after an idle period
