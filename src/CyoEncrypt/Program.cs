@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020 Graham Bull
+// Copyright (c) 2020-2021 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ namespace CyoEncrypt
                 {
                     Console.WriteLine("Usage:\n\n"
                         + "  CyoEncrypt <pathname> [<password>] [--no-confirm]\n"
-                        + "  CyoEncrypt <path> [<password>] [--no-confirm] [-r|--recurse]");
+                        + "  CyoEncrypt <path> [<password>] [--no-confirm] [-r|--recurse] [--exclude=folder,...]");
                     return 2;
                 }
 
@@ -80,8 +80,8 @@ namespace CyoEncrypt
 
             var fileInfo = new FileInfo(arguments.Pathname);
             var encryptor = fileInfo.Attributes.HasFlag(FileAttributes.Directory)
-                ? new FolderEncryptor(salt, arguments.Recurse) as IEncryptor
-                : new FileEncryptor(salt);
+                ? new FolderEncryptor(salt, arguments.Recurse, arguments.Exclude) as IEncryptor
+                : new FileEncryptor(salt, false);
 
             try
             {

@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020 Graham Bull
+// Copyright (c) 2020-2021 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ namespace CyoEncrypt
         public bool NoConfirm { get; set; } = false;
         public string Pathname { get; set; } = null;
         public string Password { get; set; } = null;
+        public string Exclude { get; set; } = null;
 
         public static Arguments Parse(string[] args)
         {
@@ -66,6 +67,12 @@ namespace CyoEncrypt
                     continue;
                 }
 
+                if (MatchArg(larg, "exclude", out var exclude))
+                {
+                    arguments.Exclude = exclude;
+                    continue;
+                }
+
                 if (!arg.StartsWith('-'))
                 {
                     if (string.IsNullOrEmpty(arguments.Pathname))
@@ -95,6 +102,19 @@ namespace CyoEncrypt
             if (abbr.Any(a => arg == $"-{a}"))
                 return true;
 
+            return false;
+        }
+
+        private static bool MatchArg(string arg, string option, out string value)
+        {
+            var prefix = $"--{option}=";
+            if (arg.StartsWith(prefix))
+            {
+                value = arg[prefix.Length..];
+                return !string.IsNullOrWhiteSpace(value);
+            }
+
+            value = null;
             return false;
         }
     }

@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020 Graham Bull
+// Copyright (c) 2020-2021 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -37,10 +37,12 @@ namespace CyoEncrypt
         }
 
         private readonly byte[] _salt;
+        private readonly bool _quiet;
 
-        public FileEncryptor(byte[] salt)
+        public FileEncryptor(byte[] salt, bool quiet)
         {
             _salt = salt;
+            _quiet = quiet;
         }
 
         public async Task EncryptOrDecrypt(string pathname, string password)
@@ -80,7 +82,8 @@ namespace CyoEncrypt
 
             ValidateOutputLength(output, isEncrypted, header);
 
-            Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
+            if (!_quiet)
+                Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
         }
 
         private static FileHeader GetOrCreateHeader(FileStream input, FileStream output, bool isEncrypted, long fileLength)
