@@ -122,7 +122,7 @@ namespace CyoEncrypt
                 --remaining;
                 if (stopwatch.ElapsedMilliseconds > 1000)
                 {
-                    Console.Write($"\r{remaining}\r");
+                    Console.Write($"\r{remaining} \r");
                     stopwatch.Restart();
                 }
             }
