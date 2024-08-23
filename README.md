@@ -4,8 +4,8 @@ CyoEncrypt.NET is an easy-to-use command-line file encryptor.
 
 ## Features
 
-- Written in .NET 5.0
-- CyoEncrypt can encrypt (and decrypt) a single file
+- Written in C#, using .NET 8.0
+- CyoEncrypt can encrypt (and decrypt) a single file or entire folders
 - Files are encrypted using AES
 - Encrypted files are identified with an extension of ".encrypted"
 
@@ -13,7 +13,7 @@ CyoEncrypt.NET is an easy-to-use command-line file encryptor.
 
 ### Windows
 
-Download and install the .NET 5.0 SDK: https://dotnet.microsoft.com/download
+Download and install the .NET 8.0 SDK: https://dotnet.microsoft.com/download
 
 Now execute:
 
@@ -25,7 +25,7 @@ Copy the contents of the *pub* subfolder to a folder that's accessible to your P
 
 ### Linux
 
-Install the .NET 5.0 SDK, by following the instructions for your distribution: https://docs.microsoft.com/en-us/dotnet/core/install/linux
+Install the .NET 8.0 SDK, by following the instructions for your distribution: https://docs.microsoft.com/en-us/dotnet/core/install/linux
 
 If your package manager doesn't include it, the .NET SDK can be installed via Snap: https://snapcraft.io/dotnet-sdk
 
@@ -57,7 +57,7 @@ Encrypt or decrypt a single file:
 
 Encrypt or decrypt the files within a folder:
 
-    cyoencrypt path [password] [--no-confirm] [-r|--recurse] [--exclude=folder,...]
+    cyoencrypt path [password] [--no-confirm] [-r|--recurse] [--exclude=folder,...] [-e|--reencrypt]
 
 If the password isn't passed on the command line, then the user is prompted to type it.
 
@@ -67,17 +67,19 @@ When specifying a folder, certain subfolders can be excluded via the --exclude a
 
     --exclude=obj,node_modules
 
+If --reencrypt is specified when decrypting a file, then the password is securely stored
+to allow the file to be subsequently re-encrypted with the same password.
+
 ## To Do
 
 - Securely overwrite original plaintext file once encrypted
-- Ability to easily manually re-encrypt a file
 - Ability to automatically re-encrypt a file after an idle period
 
 ## Licence
 
 The MIT License (MIT)
 
-Copyright (c) 2020-2021 Graham Bull
+Copyright (c) 2020-2024 Graham Bull
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
