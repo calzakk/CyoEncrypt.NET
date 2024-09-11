@@ -101,7 +101,7 @@ namespace UnitTests
             var plaintextInput = FillBuffer(plaintextLength);
             var plaintextInputStream = new MemoryStream(plaintextInput);
             var ciphertextOutputStream = new MemoryStream();
-            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, plaintextLength, aes.CreateEncryptor());
+            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, aes.CreateEncryptor());
 
             var outputSize = Crypto.Constants.BlockSize * (numBlocks + 1); //plus a final block
             var ciphertextOutput = ciphertextOutputStream.ToArray();
@@ -109,7 +109,7 @@ namespace UnitTests
 
             var ciphertextInputStream = new MemoryStream(ciphertextOutput);
             var decryptedOutputStream = new MemoryStream();
-            await Crypto.Transform(ciphertextInputStream, decryptedOutputStream, true, plaintextLength, aes.CreateDecryptor());
+            await Crypto.Transform(ciphertextInputStream, decryptedOutputStream, true, aes.CreateDecryptor());
 
             var decryptedOutput = decryptedOutputStream.ToArray();
             decryptedOutput.Length.Should().Be(plaintextLength);
@@ -137,7 +137,7 @@ namespace UnitTests
             var plaintextInput = Enumerable.Range(0, plaintextLength).Select(x => (byte)x).ToArray();
             var plaintextInputStream = new MemoryStream(plaintextInput);
             var ciphertextOutputStream = new MemoryStream();
-            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, plaintextLength, aes.CreateEncryptor());
+            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, aes.CreateEncryptor());
 
             var outputSize = Crypto.Constants.BlockSize * (numBlocks + 1); //plus a final block
             var ciphertextOutput = ciphertextOutputStream.ToArray();

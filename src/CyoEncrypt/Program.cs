@@ -29,9 +29,9 @@ using System.Threading.Tasks;
 
 namespace CyoEncrypt
 {
-    class Program
+    public class Program
     {
-        static async Task<int> Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             Arguments arguments;
             try
@@ -50,17 +50,17 @@ namespace CyoEncrypt
                     + "  CyoEncrypt pathname [password] [options]\n"
                     + "\n"
                     + "Where:\n"
-                    + $"  pathname         Specifies a file or {_folder}.\n"
+                    + $"  pathname         Specifies a file or {Folder}.\n"
                     + "  password         Encryption or decryption password.\n"
                     + "\n"
                     + "Options:\n"
                     + "  --no-confirm     Do not confirm the password.\n"
                     + "Options (files):\n"
-                    + "  -e, --reencrypt  Remember the decryption password for subsequent reencryption.\n"
-                    + $"Options ({_folders}):\n"
-                    + $"  -r, --recurse    Recurse into sub{_folders}.\n"
-                    + $"  --exclude={_folder},...\n"
-                    + $"                   Exclude named sub{_folders}.\n");
+                    + "  -e, --reencrypt  Remember the decryption password for subsequent re-encryption.\n"
+                    + $"Options ({Folders}):\n"
+                    + $"  -r, --recurse    Recurse into sub{Folders}.\n"
+                    + $"  --exclude={Folder},...\n"
+                    + $"                   Exclude named sub{Folders}.\n");
                 return 2;
             }
 
@@ -72,13 +72,13 @@ namespace CyoEncrypt
 
             var salt = GetSalt();
 
-            var password = new Password(arguments.Password, arguments.NoConfirm, arguments.Reencrypt);
+            var password = new Password(arguments.Password, arguments.NoConfirm, arguments.ReEncrypt);
 
             var fileInfo = new FileInfo(arguments.Pathname);
             var dirInfo = new DirectoryInfo(arguments.Pathname);
             if (!fileInfo.Exists && !dirInfo.Exists)
             {
-                Console.WriteLine($"File or {_folder} not found!");
+                Console.WriteLine($"File or {Folder} not found!");
                 return 1;
             }
 
@@ -107,14 +107,14 @@ namespace CyoEncrypt
             const string filename = "CyoEncrypt.data";
 
             var applicationData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var applicationDataPath = Path.Combine(applicationData, subfolder);
-            var applicationDataPathname = Path.Combine(applicationDataPath, filename);
+            var applicationDataPath = Path.Join(applicationData, subfolder);
+            var applicationDataPathname = Path.Join(applicationDataPath, filename);
             if (File.Exists(applicationDataPathname))
                 return File.ReadAllBytes(applicationDataPathname);
 
             var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
             var currentFolder = Path.GetDirectoryName(executingAssembly);
-            var currentFolderPathname = Path.Combine(currentFolder, subfolder, filename);
+            var currentFolderPathname = Path.Join(currentFolder, subfolder, filename);
             if (File.Exists(currentFolderPathname))
                 return File.ReadAllBytes(currentFolderPathname);
 
@@ -142,8 +142,8 @@ namespace CyoEncrypt
 
             if (isFolder)
             {
-                if (arguments.Reencrypt)
-                    errors.Add($"--reencrypt cannot be used with {_folders}");
+                if (arguments.ReEncrypt)
+                    errors.Add($"--reencrypt cannot be used with {Folders}");
             }
             else
             {
@@ -154,17 +154,13 @@ namespace CyoEncrypt
                     errors.Add("--exclude cannot be used with files");
             }
 
-            if (errors.Count >= 1)
-            {
-                foreach (var error in errors)
-                    Console.WriteLine(error);
-                return true;
-            }
+            foreach (var error in errors)
+                Console.WriteLine(error);
 
-            return false;
+            return errors.Count >= 1;
         }
 
-        private static readonly string _folder = OperatingSystem.IsWindows() ? "folder" : "directory";
-        private static readonly string _folders = OperatingSystem.IsWindows() ? "folders" : "directories";
+        private static string Folder => OperatingSystem.IsWindows() ? "folder" : "directory";
+        private static string Folders => OperatingSystem.IsWindows() ? "folders" : "directories";
     }
 }

@@ -26,11 +26,11 @@ namespace CyoEncrypt
 {
     public interface IPassword
     {
-        bool Reencrypt { get; }
+        bool ReEncrypt { get; }
 
-        string GetPassword(string pathname);
+        byte[] GetPassword();
 
-        (byte[] iv, byte[] key) GetSavedKey(string pathname);
+        (byte[] iv, byte[] key)? GetSavedKey(string pathname);
 
         void SaveKey(string pathname, byte[] iv, byte[] key);
 

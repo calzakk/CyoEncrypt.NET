@@ -23,7 +23,6 @@
 // SOFTWARE.
 
 using CyoEncrypt.Exceptions;
-using System;
 using System.IO;
 using System.Linq;
 
@@ -45,7 +44,7 @@ namespace CyoEncrypt
         public string Preamble { get; init; } = Constants.Preamble;
         public ushort VersionMajor { get; init; } = Constants.VersionMajor;
         public ushort VersionMinor { get; init; } = Constants.VersionMinor;
-        public long FileLength { get; set; } = -1;
+        public long FileLength { get; init; } = -1;
         public ulong Reserved { get; init; } = Constants.Reserved;
         public string Sentinel { get; init; } = Constants.Sentinel;
 

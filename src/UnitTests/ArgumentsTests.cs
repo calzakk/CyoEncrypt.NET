@@ -34,7 +34,7 @@ namespace UnitTests
         [Fact]
         public void WhenNothingSpecified_WhenTheArgumentsAreParsed_ThenNoArgumentsShouldBeFlagged()
         {
-            var args = Arguments.Parse(Array.Empty<string>());
+            var args = Arguments.Parse([]);
 
             args.Help.Should().BeFalse();
             args.Recurse.Should().BeFalse();
@@ -49,7 +49,7 @@ namespace UnitTests
         [InlineData("--help")]
         public void GivenHelpIsSpecified_WhenTheArgumentsAreParsed_ThenHelpShouldBeFlagged(string arg)
         {
-            var args = Arguments.Parse(new[] { arg });
+            var args = Arguments.Parse([arg]);
 
             args.Help.Should().BeTrue();
             args.Recurse.Should().BeFalse();
@@ -63,7 +63,7 @@ namespace UnitTests
         [InlineData("--recurse")]
         public void GivenRecurseIsSpecified_WhenTheArgumentsAreParsed_ThenRecurseShouldBeFlagged(string arg)
         {
-            var args = Arguments.Parse(new[] { arg });
+            var args = Arguments.Parse([arg]);
 
             args.Help.Should().BeFalse();
             args.Recurse.Should().BeTrue();
@@ -76,7 +76,7 @@ namespace UnitTests
         [InlineData("--no-confirm")]
         public void GivenNoConfirmIsSpecified_WhenTheArgumentsAreParsed_ThenNoConfirmShouldBeFlagged(string arg)
         {
-            var args = Arguments.Parse(new[] { arg });
+            var args = Arguments.Parse([arg]);
 
             args.Help.Should().BeFalse();
             args.Recurse.Should().BeFalse();
@@ -88,7 +88,7 @@ namespace UnitTests
         [Fact]
         public void GivenPathnameIsSpecified_WhenTheArgumentsAreParsed_ThenPathnameShouldBeFlagged()
         {
-            var args = Arguments.Parse(new[] { "/path/to/file" });
+            var args = Arguments.Parse(["/path/to/file"]);
 
             args.Help.Should().BeFalse();
             args.Recurse.Should().BeFalse();
@@ -100,7 +100,7 @@ namespace UnitTests
         [Fact]
         public void GivenPathnameAndPasswordAreSpecified_WhenTheArgumentsAreParsed_ThenPathnameAndPasswordShouldBeFlagged()
         {
-            var args = Arguments.Parse(new[] { "/path/to/file", "12345" });
+            var args = Arguments.Parse(["/path/to/file", "12345"]);
 
             args.Help.Should().BeFalse();
             args.Recurse.Should().BeFalse();
@@ -112,7 +112,7 @@ namespace UnitTests
         [Fact]
         public void GivenThreeStringsAreSpecified_WhenTheArgumentsAreParsed_ThenAnExceptionShouldBeThrown()
         {
-            Action action = () => Arguments.Parse(new[] { "/path/to/file", "12345", "67890" });
+            Action action = () => Arguments.Parse(["/path/to/file", "12345", "67890"]);
             action.Should().Throw<ArgumentException>();
         }
     }

@@ -29,34 +29,29 @@ using System.Text;
 
 namespace CyoEncrypt
 {
-    public class Password : IPassword
+    public class Password(string? password, bool noConfirm, bool reEncrypt) : IPassword
     {
-        public static class Constants
+        private static class Constants
         {
             public const string Preamble = "CYO\x1";
         }
 
-        private string _password;
-        private readonly bool _noConfirm;
+        private static readonly (byte[], byte[]) NoSavedKey = ([], []);
+
+        private string? _password = password;
         private bool _confirmed;
-        public bool Reencrypt { get; }
+        public bool ReEncrypt { get; } = reEncrypt;
 
-        public Password(string password, bool noConfirm, bool reencrypt)
-        {
-            _password = password;
-            _noConfirm = noConfirm;
-            Reencrypt = reencrypt;
-        }
-
-        public string GetPassword(string pathname)
+        public byte[] GetPassword()
         {
             if (string.IsNullOrEmpty(_password))
             {
                 Console.Write("Password: ");
-                _password = Console.ReadLine();
+                _password = Console.ReadLine()
+                            ?? throw new Exception("Password cannot be empty");
             }
 
-            if (!_noConfirm && !_confirmed)
+            if (!noConfirm && !_confirmed)
             {
                 Console.Write("Confirm: ");
                 var confirm = Console.ReadLine();
@@ -65,34 +60,38 @@ namespace CyoEncrypt
                 _confirmed = true;
             }
 
-            return _password;
+            return Encoding.UTF8.GetBytes(_password);
         }
-
-        public (byte[], byte[]) GetSavedKey(string pathname)
+        
+        public (byte[], byte[])? GetSavedKey(string pathname)
         {
             var passwordFile = MakePathnameForSavedPassword(pathname);
             if (!File.Exists(passwordFile))
-                return (null, null);
+                return null;
 
             var fileInfo = new FileInfo(passwordFile);
             var expectedSize = GetExpectedSize();
             if (fileInfo.Length != expectedSize)
-                return (null, null);
+                return null;
 
             var content = File.ReadAllBytes(passwordFile);
             using var memoryStream = new MemoryStream(content);
             using var binaryReader = new BinaryReader(memoryStream);
+
             var preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length));
             if (!preamble.SequenceEqual(Constants.Preamble))
-                return (null, null);
+                return null;
+
             var ivSize = binaryReader.ReadInt32();
             if (ivSize != Crypto.Constants.IvSize)
-                return (null, null);
+                return null;
             var iv = binaryReader.ReadBytes(ivSize);
+
             var keySize = binaryReader.ReadInt32();
             if (keySize != Crypto.Constants.KeySize)
-                return (null, null);
+                return null;
             var key = binaryReader.ReadBytes(keySize);
+
             return (iv, key);
         }
 
@@ -104,7 +103,7 @@ namespace CyoEncrypt
                 Console.WriteLine("File already exists!");
                 return;
             }
-
+            
             using var memoryStream = new MemoryStream();
             using var binaryWriter = new BinaryWriter(memoryStream);
             binaryWriter.Write(Constants.Preamble.ToCharArray());
@@ -131,11 +130,11 @@ namespace CyoEncrypt
             Console.WriteLine("Password deleted");
         }
 
-        private string MakePathnameForSavedPassword(string pathname)
+        private static string MakePathnameForSavedPassword(string pathname)
         {
             var filename = Path.GetFileName(pathname);
             var folder = Path.GetDirectoryName(pathname);
-            return Path.Combine(folder, $".{filename}.cyoencrypt");
+            return Path.Join(folder, $".{filename}.cyoencrypt");
         }
 
         private static int GetExpectedSize()

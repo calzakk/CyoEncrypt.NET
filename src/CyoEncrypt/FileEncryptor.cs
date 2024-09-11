@@ -24,27 +24,15 @@
 
 using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace CyoEncrypt
 {
-    public class FileEncryptor : IEncryptor
+    public class FileEncryptor(byte[] salt, IPassword password, bool quiet) : IEncryptor
     {
         public static class Constants
         {
             public const string EncryptedExtension = ".encrypted";
-        }
-
-        private readonly byte[] _salt;
-        private readonly IPassword _password;
-        private readonly bool _quiet;
-
-        public FileEncryptor(byte[] salt, IPassword password, bool quiet)
-        {
-            _salt = salt;
-            _password = password;
-            _quiet = quiet;
         }
 
         public async Task EncryptOrDecrypt(string pathname)
@@ -54,23 +42,19 @@ namespace CyoEncrypt
             var basePathname = GetBasePathname(pathname, isEncrypted);
             var outputPathname = GetOutputPathname(pathname, isEncrypted);
 
-            byte[] iv = null;
-            byte[] key = null;
-            if (!isEncrypted && _password.Reencrypt)
+            byte[] iv = [];
+            byte[] key = [];
+            if (!isEncrypted && password.ReEncrypt)
             {
-                var ivAndKey = _password.GetSavedKey(basePathname);
-                if (ivAndKey.iv != null && ivAndKey.key != null)
-                {
-                    iv = ivAndKey.iv;
-                    key = ivAndKey.key;
-                }
+                var saved = password.GetSavedKey(basePathname);
+                if (saved is not null)
+                    (iv, key) = (saved.Value.iv, saved.Value.key);
             }
-            if (iv == null || key == null)
+            if (iv.Length == 0)
             {
-                var password = _password.GetPassword(pathname);
-                var passwordBytes = Encoding.UTF8.GetBytes(password);
-                iv = Crypto.CreateIv(passwordBytes, _salt);
-                key = Crypto.CreateKey(passwordBytes, _salt);
+                var passwordBytes = password.GetPassword();
+                iv = Crypto.CreateIv(passwordBytes, salt);
+                key = Crypto.CreateKey(passwordBytes, salt);
             }
 
             await TransformFile(pathname, outputPathname, iv, key, isEncrypted);
@@ -78,22 +62,22 @@ namespace CyoEncrypt
             DeleteFile(pathname);
 
             if (!isEncrypted)
-                _password.DeleteSavedKey(basePathname);
-            else if (_password.Reencrypt)
-                _password.SaveKey(basePathname, iv, key);
+                password.DeleteSavedKey(basePathname);
+            else if (password.ReEncrypt)
+                password.SaveKey(basePathname, iv, key);
         }
 
-        private string GetBasePathname(string pathname, bool isEncrypted)
+        private static string GetBasePathname(string pathname, bool isEncrypted)
         {
             return isEncrypted
-                ? pathname.Substring(0, pathname.Length - Constants.EncryptedExtension.Length)
+                ? pathname[..^Constants.EncryptedExtension.Length]
                 : pathname;
         }
 
-        private string GetOutputPathname(string pathname, bool isEncrypted)
+        private static string GetOutputPathname(string pathname, bool isEncrypted)
         {
             var outputPathname = isEncrypted
-                ? pathname.Substring(0, pathname.Length - Constants.EncryptedExtension.Length)
+                ? pathname[..^Constants.EncryptedExtension.Length]
                 : pathname + Constants.EncryptedExtension;
 
             if (File.Exists(outputPathname))
@@ -108,18 +92,18 @@ namespace CyoEncrypt
 
             var fileLength = new FileInfo(inputPathname).Length;
 
-            using var input = File.OpenRead(inputPathname);
-            using var output = File.Create(outputPathname);
+            await using var input = File.OpenRead(inputPathname);
+            await using var output = File.Create(outputPathname);
 
             var header = GetOrCreateHeader(input, output, isEncrypted, fileLength);
 
             var cryptoTransform = isEncrypted ? aes.CreateDecryptor() : aes.CreateEncryptor();
 
-            await Crypto.Transform(input, output, isEncrypted, header.FileLength, cryptoTransform);
+            await Crypto.Transform(input, output, isEncrypted, cryptoTransform);
 
             ValidateOutputLength(output, isEncrypted, header);
 
-            if (!_quiet)
+            if (!quiet)
                 Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
         }
 
@@ -141,8 +125,8 @@ namespace CyoEncrypt
                 expectedLength = header.FileLength;
             else
             {
-                var headerSize = FileHeader.Constants.HeaderLength;
-                var blockSize = Crypto.Constants.BlockSize;
+                const int headerSize = FileHeader.Constants.HeaderLength;
+                const int blockSize = Crypto.Constants.BlockSize;
                 expectedLength = headerSize + blockSize * ((header.FileLength / blockSize) + 1); //+1 because there's always an extra block
             }
 

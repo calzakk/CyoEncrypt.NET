@@ -29,13 +29,13 @@ namespace CyoEncrypt
 {
     public class Arguments
     {
-        public bool Help { get; set; } = false;
-        public bool Recurse { get; set; } = false;
-        public bool NoConfirm { get; set; } = false;
-        public bool Reencrypt { get; set; } = false;
-        public string Pathname { get; set; } = null;
-        public string Password { get; set; } = null;
-        public string Exclude { get; set; } = null;
+        public bool Help { get; private set; }
+        public bool Recurse { get; private set; }
+        public bool NoConfirm { get; private set; }
+        public bool ReEncrypt { get; private set; }
+        public string? Pathname { get; private set; }
+        public string? Password { get; private set; }
+        public string? Exclude { get; private set; }
 
         public static Arguments Parse(string[] args)
         {
@@ -76,7 +76,7 @@ namespace CyoEncrypt
 
                 if (MatchArg(larg, "reencrypt", 'e'))
                 {
-                    arguments.Reencrypt = true;
+                    arguments.ReEncrypt = true;
                     continue;
                 }
 
@@ -115,7 +115,7 @@ namespace CyoEncrypt
             return false;
         }
 
-        private static bool MatchArg(string arg, string option, out string value)
+        private static bool MatchArg(string arg, string option, out string? value)
         {
             var prefix = $"--{option}=";
             if (arg.StartsWith(prefix))
