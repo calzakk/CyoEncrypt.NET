@@ -24,10 +24,9 @@
 
 using System.Threading.Tasks;
 
-namespace CyoEncrypt
+namespace CyoEncrypt;
+
+public interface IEncryptor
 {
-    public interface IEncryptor
-    {
-        Task EncryptOrDecrypt(string pathname);
-    }
+    Task EncryptOrDecrypt(string pathname);
 }

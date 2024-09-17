@@ -73,7 +73,8 @@ to allow the file to be subsequently re-encrypted with the same password.
 ## To Do
 
 - Securely overwrite original plaintext file once encrypted
-- Ability to automatically re-encrypt a file after an idle period
+- Automatically re-encrypt a file after an idle period
+- Use a master password on startup
 
 ## Licence
 

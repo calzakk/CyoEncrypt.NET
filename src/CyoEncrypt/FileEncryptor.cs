@@ -24,126 +24,139 @@
 
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
+using CyoEncrypt.Exceptions;
 
-namespace CyoEncrypt
+namespace CyoEncrypt;
+
+public class FileEncryptor(byte[] salt, IPassword password, bool quiet) : IEncryptor
 {
-    public class FileEncryptor(byte[] salt, IPassword password, bool quiet) : IEncryptor
+    public static class Constants
     {
-        public static class Constants
+        public const string EncryptedExtension = ".encrypted";
+    }
+
+    public async Task EncryptOrDecrypt(string pathname)
+    {
+        var isEncrypted = pathname.EndsWith(Constants.EncryptedExtension);
+
+        var basePathname = GetBasePathname(pathname, isEncrypted);
+        var outputPathname = GetOutputPathname(pathname, isEncrypted);
+
+        byte[] iv = [];
+        byte[] key = [];
+        if (!isEncrypted && password.ReEncrypt)
         {
-            public const string EncryptedExtension = ".encrypted";
+            var saved = await password.GetSavedKey(basePathname);
+            if (saved is not null)
+                (iv, key) = (saved.Value.iv, saved.Value.key);
+        }
+        if (iv.Length == 0)
+        {
+            var passwordBytes = password.GetPassword();
+            iv = Crypto.CreateIv(passwordBytes, salt);
+            key = Crypto.CreateKey(passwordBytes, salt);
         }
 
-        public async Task EncryptOrDecrypt(string pathname)
+        await TransformFile(pathname, outputPathname, iv, key, isEncrypted);
+
+        DeleteFile(pathname);
+
+        if (!isEncrypted)
+            password.DeleteSavedKey(basePathname);
+        else if (password.ReEncrypt)
+            await password.SaveKey(basePathname, iv, key);
+    }
+
+    private static string GetBasePathname(string pathname, bool isEncrypted)
+    {
+        return isEncrypted
+            ? pathname[..^Constants.EncryptedExtension.Length]
+            : pathname;
+    }
+
+    private static string GetOutputPathname(string pathname, bool isEncrypted)
+    {
+        var outputPathname = isEncrypted
+            ? pathname[..^Constants.EncryptedExtension.Length]
+            : pathname + Constants.EncryptedExtension;
+
+        if (File.Exists(outputPathname))
+            throw new Exception($"Output file already exists: {Path.GetFileName(outputPathname)}");
+
+        return outputPathname;
+    }
+
+    private async Task TransformFile(string inputPathname, string outputPathname, byte[] iv, byte[] key, bool isEncrypted)
+    {
+        using var aes = Crypto.CreateAes(iv, key);
+
+        var fileLength = new FileInfo(inputPathname).Length;
+
+        await using var input = File.OpenRead(inputPathname);
+        await using var output = File.Create(outputPathname);
+
+        var header = GetOrCreateHeader(input, output, isEncrypted, fileLength);
+
+        var cryptoTransform = isEncrypted ? aes.CreateDecryptor() : aes.CreateEncryptor();
+
+        await Transform(input, output, isEncrypted, cryptoTransform);
+
+        ValidateOutputLength(output, isEncrypted, header);
+
+        if (!quiet)
+            Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
+    }
+
+    private static FileHeader GetOrCreateHeader(FileStream input, FileStream output, bool isEncrypted, long fileLength)
+    {
+        if (isEncrypted)
+            return FileHeader.Parse(input);
+
+        var header = new FileHeader { FileLength = fileLength };
+        header.Write(output);
+        return header;
+    }
+
+    private static async Task Transform(Stream input, Stream output, bool isEncrypted, ICryptoTransform cryptoTransform)
+    {
+        try
         {
-            var isEncrypted = pathname.EndsWith(Constants.EncryptedExtension);
+            await Crypto.Transform(input, output, cryptoTransform);
+        }
+        catch (Exception ex)
+        {
+            throw new CryptoException($"Unable to {(isEncrypted ? "decrypt" : "encrypt")} file: {ex.Message}");
+        }
+    }
 
-            var basePathname = GetBasePathname(pathname, isEncrypted);
-            var outputPathname = GetOutputPathname(pathname, isEncrypted);
+    private static void ValidateOutputLength(Stream output, bool isEncrypted, FileHeader header)
+    {
+        long expectedLength;
 
-            byte[] iv = [];
-            byte[] key = [];
-            if (!isEncrypted && password.ReEncrypt)
-            {
-                var saved = await password.GetSavedKey(basePathname);
-                if (saved is not null)
-                    (iv, key) = (saved.Value.iv, saved.Value.key);
-            }
-            if (iv.Length == 0)
-            {
-                var passwordBytes = password.GetPassword();
-                iv = Crypto.CreateIv(passwordBytes, salt);
-                key = Crypto.CreateKey(passwordBytes, salt);
-            }
-
-            await TransformFile(pathname, outputPathname, iv, key, isEncrypted);
-
-            DeleteFile(pathname);
-
-            if (!isEncrypted)
-                password.DeleteSavedKey(basePathname);
-            else if (password.ReEncrypt)
-                await password.SaveKey(basePathname, iv, key);
+        if (isEncrypted)
+            expectedLength = header.FileLength;
+        else
+        {
+            const int headerSize = FileHeader.Constants.HeaderLength;
+            const int blockSize = Crypto.Constants.BlockSize;
+            expectedLength = headerSize + blockSize * ((header.FileLength / blockSize) + 1); //+1 because there's always an extra block
         }
 
-        private static string GetBasePathname(string pathname, bool isEncrypted)
+        if (output.Length != expectedLength)
+            throw new Exception($"{(isEncrypted ? "Decrypted" : "Encrypted")} file has unexpected length {output.Length}, expected {expectedLength}");
+    }
+
+    private static void DeleteFile(string pathname)
+    {
+        try
         {
-            return isEncrypted
-                ? pathname[..^Constants.EncryptedExtension.Length]
-                : pathname;
+            File.Delete(pathname);
         }
-
-        private static string GetOutputPathname(string pathname, bool isEncrypted)
+        catch (Exception ex)
         {
-            var outputPathname = isEncrypted
-                ? pathname[..^Constants.EncryptedExtension.Length]
-                : pathname + Constants.EncryptedExtension;
-
-            if (File.Exists(outputPathname))
-                throw new Exception($"Output file already exists: {Path.GetFileName(outputPathname)}");
-
-            return outputPathname;
-        }
-
-        private async Task TransformFile(string inputPathname, string outputPathname, byte[] iv, byte[] key, bool isEncrypted)
-        {
-            using var aes = Crypto.CreateAes(iv, key);
-
-            var fileLength = new FileInfo(inputPathname).Length;
-
-            await using var input = File.OpenRead(inputPathname);
-            await using var output = File.Create(outputPathname);
-
-            var header = GetOrCreateHeader(input, output, isEncrypted, fileLength);
-
-            var cryptoTransform = isEncrypted ? aes.CreateDecryptor() : aes.CreateEncryptor();
-
-            await Crypto.Transform(input, output, isEncrypted, cryptoTransform);
-
-            ValidateOutputLength(output, isEncrypted, header);
-
-            if (!quiet)
-                Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
-        }
-
-        private static FileHeader GetOrCreateHeader(FileStream input, FileStream output, bool isEncrypted, long fileLength)
-        {
-            if (isEncrypted)
-                return FileHeader.Parse(input);
-
-            var header = new FileHeader { FileLength = fileLength };
-            header.Write(output);
-            return header;
-        }
-
-        private static void ValidateOutputLength(Stream output, bool isEncrypted, FileHeader header)
-        {
-            long expectedLength;
-
-            if (isEncrypted)
-                expectedLength = header.FileLength;
-            else
-            {
-                const int headerSize = FileHeader.Constants.HeaderLength;
-                const int blockSize = Crypto.Constants.BlockSize;
-                expectedLength = headerSize + blockSize * ((header.FileLength / blockSize) + 1); //+1 because there's always an extra block
-            }
-
-            if (output.Length != expectedLength)
-                throw new Exception($"{(isEncrypted ? "Decrypted" : "Encrypted")} file has unexpected length {output.Length}, expected {expectedLength}");
-        }
-
-        private static void DeleteFile(string pathname)
-        {
-            try
-            {
-                File.Delete(pathname);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"WARNING: Unable to delete original file:\n{ex.Message}");
-            }
+            Console.WriteLine($"WARNING: Unable to delete original file:\n{ex.Message}");
         }
     }
 }

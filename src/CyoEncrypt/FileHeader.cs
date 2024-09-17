@@ -22,111 +22,110 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-using CyoEncrypt.Exceptions;
 using System.IO;
 using System.Linq;
+using CyoEncrypt.Exceptions;
 
-namespace CyoEncrypt
+namespace CyoEncrypt;
+
+public class FileHeader
 {
-    public class FileHeader
+    public static class Constants
     {
-        public static class Constants
+        public const string ErrorCorrupt = "File header is invalid or corrupt";
+        public const int HeaderLength = 28;
+        public const string Preamble = "CYO\0";
+        public const ushort VersionMajor = 3;
+        public const ushort VersionMinor = 0;
+        public const ulong Reserved = 0;
+        public const string Sentinel = "ZZZZ";
+    }
+
+    public string Preamble { get; init; } = Constants.Preamble;
+    public ushort VersionMajor { get; init; } = Constants.VersionMajor;
+    public ushort VersionMinor { get; init; } = Constants.VersionMinor;
+    public long FileLength { get; init; } = -1;
+    public ulong Reserved { get; init; } = Constants.Reserved;
+    public string Sentinel { get; init; } = Constants.Sentinel;
+
+    public void Write(Stream stream)
+    {
+        if (FileLength < 0)
+            throw new FileHeaderException("File header has uninitialized length");
+
+        var binaryWriter = new BinaryWriter(stream);
+        binaryWriter.Write(Preamble.ToCharArray());
+        binaryWriter.Write(VersionMajor);
+        binaryWriter.Write(VersionMinor);
+        binaryWriter.Write(FileLength);
+        binaryWriter.Write(Reserved);
+        binaryWriter.Write(Sentinel.ToCharArray());
+        binaryWriter.Flush();
+
+        if (stream.Length != Constants.HeaderLength)
+            throw new FileHeaderException("File header has unexpected length");
+    }
+
+    public static FileHeader Parse(Stream stream)
+    {
+        var header = ParseHeader(stream);
+        ValidateHeader(header);
+        return header;
+    }
+
+    private static FileHeader ParseHeader(Stream stream)
+    {
+        try
         {
-            public const string ErrorCorrupt = "File header is invalid or corrupt";
-            public const int HeaderLength = 28;
-            public const string Preamble = "CYO\0";
-            public const ushort VersionMajor = 3;
-            public const ushort VersionMinor = 0;
-            public const ulong Reserved = 0;
-            public const string Sentinel = "ZZZZ";
-        }
+            var binaryReader = new BinaryReader(stream);
 
-        public string Preamble { get; init; } = Constants.Preamble;
-        public ushort VersionMajor { get; init; } = Constants.VersionMajor;
-        public ushort VersionMinor { get; init; } = Constants.VersionMinor;
-        public long FileLength { get; init; } = -1;
-        public ulong Reserved { get; init; } = Constants.Reserved;
-        public string Sentinel { get; init; } = Constants.Sentinel;
-
-        public void Write(Stream stream)
-        {
-            if (FileLength < 0)
-                throw new FileHeaderException("File header has uninitialized length");
-
-            var binaryWriter = new BinaryWriter(stream);
-            binaryWriter.Write(Preamble.ToCharArray());
-            binaryWriter.Write(VersionMajor);
-            binaryWriter.Write(VersionMinor);
-            binaryWriter.Write(FileLength);
-            binaryWriter.Write(Reserved);
-            binaryWriter.Write(Sentinel.ToCharArray());
-            binaryWriter.Flush();
-
-            if (stream.Length != Constants.HeaderLength)
-                throw new FileHeaderException("File header has unexpected length");
-        }
-
-        public static FileHeader Parse(Stream stream)
-        {
-            var header = ParseHeader(stream);
-            ValidateHeader(header);
-            return header;
-        }
-
-        private static FileHeader ParseHeader(Stream stream)
-        {
-            try
+            return new FileHeader
             {
-                var binaryReader = new BinaryReader(stream);
-
-                return new FileHeader
-                {
-                    Preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length)),
-                    VersionMajor = binaryReader.ReadUInt16(),
-                    VersionMinor = binaryReader.ReadUInt16(),
-                    FileLength = binaryReader.ReadInt64(),
-                    Reserved = binaryReader.ReadUInt64(),
-                    Sentinel = new string(binaryReader.ReadChars(Constants.Sentinel.Length))
-                };
-            }
-            catch
-            {
-                throw new FileHeaderException(Constants.ErrorCorrupt);
-            }
+                Preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length)),
+                VersionMajor = binaryReader.ReadUInt16(),
+                VersionMinor = binaryReader.ReadUInt16(),
+                FileLength = binaryReader.ReadInt64(),
+                Reserved = binaryReader.ReadUInt64(),
+                Sentinel = new string(binaryReader.ReadChars(Constants.Sentinel.Length))
+            };
         }
-
-        private static void ValidateHeader(FileHeader header)
+        catch
         {
-            if (!header.Preamble.SequenceEqual(Constants.Preamble))
-                throw new FileHeaderException(Constants.ErrorCorrupt);
-
-            if (header.VersionMajor != Constants.VersionMajor)
-            {
-                var major = header.VersionMajor;
-                var minor = header.VersionMinor;
-                if (major >= 0x100)
-                {
-                    major = ConvertToLittleEndian(major);
-                    minor = ConvertToLittleEndian(minor);
-                }
-                throw new FileHeaderException($"Unsupported version: {major}.{minor}");
-            }
-
-            if (header.FileLength < 0)
-                throw new FileHeaderException(Constants.ErrorCorrupt);
-
-            if (header.Reserved != Constants.Reserved)
-                throw new FileHeaderException(Constants.ErrorCorrupt);
-
-            if (!header.Sentinel.SequenceEqual(Constants.Sentinel))
-                throw new FileHeaderException(Constants.ErrorCorrupt);
+            throw new FileHeaderException(Constants.ErrorCorrupt);
         }
+    }
 
-        private static ushort ConvertToLittleEndian(ushort bigEndian)
+    private static void ValidateHeader(FileHeader header)
+    {
+        if (!header.Preamble.SequenceEqual(Constants.Preamble))
+            throw new FileHeaderException(Constants.ErrorCorrupt);
+
+        if (header.VersionMajor != Constants.VersionMajor)
         {
-            var high = (bigEndian >> 8);
-            var low = (bigEndian & 0xff);
-            return (ushort)((low << 8) | high);
+            var major = header.VersionMajor;
+            var minor = header.VersionMinor;
+            if (major >= 0x100)
+            {
+                major = ConvertToLittleEndian(major);
+                minor = ConvertToLittleEndian(minor);
+            }
+            throw new FileHeaderException($"Unsupported version: {major}.{minor}");
         }
+
+        if (header.FileLength < 0)
+            throw new FileHeaderException(Constants.ErrorCorrupt);
+
+        if (header.Reserved != Constants.Reserved)
+            throw new FileHeaderException(Constants.ErrorCorrupt);
+
+        if (!header.Sentinel.SequenceEqual(Constants.Sentinel))
+            throw new FileHeaderException(Constants.ErrorCorrupt);
+    }
+
+    private static ushort ConvertToLittleEndian(ushort bigEndian)
+    {
+        var high = (bigEndian >> 8);
+        var low = (bigEndian & 0xff);
+        return (ushort)((low << 8) | high);
     }
 }

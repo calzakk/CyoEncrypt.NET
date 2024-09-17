@@ -24,18 +24,17 @@
 
 using System.Threading.Tasks;
 
-namespace CyoEncrypt
+namespace CyoEncrypt;
+
+public interface IPassword
 {
-    public interface IPassword
-    {
-        bool ReEncrypt { get; }
+    bool ReEncrypt { get; }
 
-        byte[] GetPassword();
+    byte[] GetPassword();
 
-        Task<(byte[] iv, byte[] key)?> GetSavedKey(string pathname);
+    Task<(byte[] iv, byte[] key)?> GetSavedKey(string pathname);
 
-        Task SaveKey(string pathname, byte[] iv, byte[] key);
+    Task SaveKey(string pathname, byte[] iv, byte[] key);
 
-        void DeleteSavedKey(string pathname);
-    }
+    void DeleteSavedKey(string pathname);
 }

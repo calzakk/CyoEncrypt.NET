@@ -24,10 +24,6 @@
 
 using System;
 
-namespace CyoEncrypt.Exceptions
-{
-    public class CryptoException : Exception
-    {
-        public CryptoException(string message) : base(message) { }
-    }
-}
+namespace CyoEncrypt.Exceptions;
+
+public class CryptoException(string message) : Exception(message);

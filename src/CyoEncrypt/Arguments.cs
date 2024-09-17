@@ -25,107 +25,106 @@
 using System;
 using System.Linq;
 
-namespace CyoEncrypt
+namespace CyoEncrypt;
+
+public class Arguments
 {
-    public class Arguments
+    public bool Help { get; private set; }
+    public bool Recurse { get; private set; }
+    public bool NoConfirm { get; private set; }
+    public bool ReEncrypt { get; private set; }
+    public string? Pathname { get; private set; }
+    public string? Password { get; private set; }
+    public string? Exclude { get; private set; }
+
+    public static Arguments Parse(string[] args)
     {
-        public bool Help { get; private set; }
-        public bool Recurse { get; private set; }
-        public bool NoConfirm { get; private set; }
-        public bool ReEncrypt { get; private set; }
-        public string? Pathname { get; private set; }
-        public string? Password { get; private set; }
-        public string? Exclude { get; private set; }
+        var arguments = new Arguments();
 
-        public static Arguments Parse(string[] args)
+        foreach (var arg in args)
         {
-            var arguments = new Arguments();
+            var larg = arg.ToLowerInvariant();
 
-            foreach (var arg in args)
+            if (MatchArg(larg, "help", 'h', '?'))
             {
-                var larg = arg.ToLowerInvariant();
+                arguments.Help = true;
+                return arguments;
+            }
+        }
 
-                if (MatchArg(larg, "help", 'h', '?'))
+        foreach (var arg in args)
+        {
+            var lowerArg = arg.ToLowerInvariant();
+
+            if (MatchArg(lowerArg, "recurse", 'r'))
+            {
+                arguments.Recurse = true;
+                continue;
+            }
+
+            if (MatchArg(lowerArg, "no-confirm"))
+            {
+                arguments.NoConfirm = true;
+                continue;
+            }
+
+            if (MatchArg(lowerArg, "exclude", out var exclude))
+            {
+                arguments.Exclude = exclude;
+                continue;
+            }
+
+            if (MatchArg(lowerArg, "reencrypt", 'e'))
+            {
+                arguments.ReEncrypt = true;
+                continue;
+            }
+
+            if (!arg.StartsWith('-'))
+            {
+                if (string.IsNullOrEmpty(arguments.Pathname))
                 {
-                    arguments.Help = true;
-                    return arguments;
+                    arguments.Pathname = arg;
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(arguments.Password))
+                {
+                    arguments.Password = arg;
+                    continue;
                 }
             }
 
-            foreach (var arg in args)
-            {
-                var larg = arg.ToLowerInvariant();
-
-                if (MatchArg(larg, "recurse", 'r'))
-                {
-                    arguments.Recurse = true;
-                    continue;
-                }
-
-                if (MatchArg(larg, "no-confirm"))
-                {
-                    arguments.NoConfirm = true;
-                    continue;
-                }
-
-                if (MatchArg(larg, "exclude", out var exclude))
-                {
-                    arguments.Exclude = exclude;
-                    continue;
-                }
-
-                if (MatchArg(larg, "reencrypt", 'e'))
-                {
-                    arguments.ReEncrypt = true;
-                    continue;
-                }
-
-                if (!arg.StartsWith('-'))
-                {
-                    if (string.IsNullOrEmpty(arguments.Pathname))
-                    {
-                        arguments.Pathname = arg;
-                        continue;
-                    }
-
-                    if (string.IsNullOrEmpty(arguments.Password))
-                    {
-                        arguments.Password = arg;
-                        continue;
-                    }
-                }
-
-                throw new ArgumentException($"Invalid argument: {arg}");
-            }
-
-            return arguments;
+            throw new ArgumentException($"Invalid argument: {arg}");
         }
 
-        private static bool MatchArg(string arg, string option, params char[] abbr)
+        return arguments;
+    }
+
+    private static bool MatchArg(string arg, string option, params char[] abbr)
+    {
+        if (arg == $"--{option}")
+            return true;
+
+        if (abbr.Any(a => arg == $"-{a}"))
+            return true;
+
+        if (OperatingSystem.IsWindows() && abbr.Any(a => arg == $"/{a}"))
+            return true;
+
+        return false;
+    }
+
+    private static bool MatchArg(string arg, string option, out string? value)
+    {
+        var prefix = $"--{option}=";
+        if (arg.StartsWith(prefix))
         {
-            if (arg == $"--{option}")
-                return true;
-
-            if (abbr.Any(a => arg == $"-{a}"))
-                return true;
-
-            if (OperatingSystem.IsWindows() && abbr.Any(a => arg == $"/{a}"))
-                return true;
-
-            return false;
+            value = arg[prefix.Length..];
+            return !string.IsNullOrWhiteSpace(value);
         }
 
-        private static bool MatchArg(string arg, string option, out string? value)
-        {
-            var prefix = $"--{option}=";
-            if (arg.StartsWith(prefix))
-            {
-                value = arg[prefix.Length..];
-                return !string.IsNullOrWhiteSpace(value);
-            }
-
-            value = null;
-            return false;
-        }
+        value = null;
+        return false;
     }
 }
