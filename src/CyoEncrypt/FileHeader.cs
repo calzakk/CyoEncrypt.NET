@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,6 @@
 // SOFTWARE.
 
 using CyoEncrypt.Exceptions;
-using System;
 using System.IO;
 using System.Linq;
 
@@ -45,7 +44,7 @@ namespace CyoEncrypt
         public string Preamble { get; init; } = Constants.Preamble;
         public ushort VersionMajor { get; init; } = Constants.VersionMajor;
         public ushort VersionMinor { get; init; } = Constants.VersionMinor;
-        public long FileLength { get; set; } = -1;
+        public long FileLength { get; init; } = -1;
         public ulong Reserved { get; init; } = Constants.Reserved;
         public string Sentinel { get; init; } = Constants.Sentinel;
 

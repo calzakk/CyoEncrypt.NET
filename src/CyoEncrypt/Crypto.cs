@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,14 +32,11 @@ using Crypto_PaddingMode = System.Security.Cryptography.PaddingMode;
 
 namespace CyoEncrypt
 {
-    public class Crypto
+    public static class Crypto
     {
         public static class Constants
         {
             public const int SaltSize = 1024;
-            public const int SaltSizeInBits = SaltSize * 8;
-            public const int HashSizeInBits = 512;
-            public const int HashSize = HashSizeInBits / 8;
             public const int BlockSize = 16;
             public const int BlockSizeInBits = BlockSize * 8;
             public const int IvSize = BlockSize;
@@ -64,12 +61,10 @@ namespace CyoEncrypt
             memoryStream.Write(salt);
             memoryStream.Flush();
             var saltedPassword = memoryStream.GetBuffer();
-
-            using var sha512 = SHA512.Create();
-            var hashBytes = sha512.ComputeHash(saltedPassword);
+            var hashBytes = SHA512.HashData(saltedPassword);
 
             var iv = new byte[Constants.IvSize];
-            Array.Fill<byte>(iv, 0x55);
+            Array.Fill(iv, (byte)0x55);
             var index = 0;
             foreach (var b in hashBytes)
             {
@@ -82,15 +77,15 @@ namespace CyoEncrypt
 
         public static byte[] CreateKey(byte[] password, byte[] salt)
         {
-            using var deriver = new Rfc2898DeriveBytes(password, salt, Constants.Iterations, HashAlgorithmName.SHA512);
-            return deriver.GetBytes(Constants.KeySize);
+            using var derive = new Rfc2898DeriveBytes(password, salt, Constants.Iterations, HashAlgorithmName.SHA512);
+            return derive.GetBytes(Constants.KeySize);
         }
 
-        public static Aes CreateAes(byte[] password, byte[] salt)
+        public static Aes CreateAes(byte[] iv, byte[] key)
         {
             var aes = Aes.Create();
-            aes.IV = CreateIv(password, salt);
-            aes.Key = CreateKey(password, salt);
+            aes.IV = iv;
+            aes.Key = key;
 
             if (aes.KeySize != Constants.KeySizeInBits)
                 throw new CryptoException("Unexpected key size");
@@ -113,11 +108,11 @@ namespace CyoEncrypt
             return aes;
         }
 
-        public static async Task Transform(Stream input, Stream output, bool isEncrypted, long plaintextLength, ICryptoTransform cryptoTransform)
+        public static async Task Transform(Stream input, Stream output, bool isEncrypted, ICryptoTransform cryptoTransform)
         {
             try
             {
-                using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
+                await using var cryptoStream = new CryptoStream(input, cryptoTransform, CryptoStreamMode.Read);
                 await cryptoStream.CopyToAsync(output);
 
                 await output.FlushAsync();

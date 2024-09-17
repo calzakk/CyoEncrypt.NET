@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ namespace UnitTests
             var header = new FileHeader();
             var outputStream = new MemoryStream();
 
-            Action action = () => header.Write(outputStream);
+            var action = () => header.Write(outputStream);
             action.Should().Throw<FileHeaderException>();
         }
 
@@ -64,7 +64,7 @@ namespace UnitTests
             RandomNumberGenerator.Fill(invalidHeader);
             var stream = new MemoryStream(invalidHeader);
 
-            Action action = () => FileHeader.Parse(stream);
+            var action = () => FileHeader.Parse(stream);
             action.Should().Throw<FileHeaderException>();
         }
 
@@ -72,7 +72,7 @@ namespace UnitTests
         [InlineData(1)]
         [InlineData(2)]
         [InlineData(4)]
-        public void GivenAHeaderWasOutputWithAnUnsupportVersion_WhenTheHeaderIsParsed_ThenAnExceptionShouldBeThrown(ushort versionMajor)
+        public void GivenAHeaderWasOutputWithAnUnsupportedVersion_WhenTheHeaderIsParsed_ThenAnExceptionShouldBeThrown(ushort versionMajor)
         {
             var header = new FileHeader
             {
@@ -87,7 +87,7 @@ namespace UnitTests
             header.Write(stream);
             stream.Position = 0;
 
-            Action action = () => FileHeader.Parse(stream);
+            var action = () => FileHeader.Parse(stream);
             action.Should().Throw<FileHeaderException>();
         }
     }

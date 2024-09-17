@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,20 +31,11 @@ using System.Diagnostics;
 
 namespace CyoEncrypt
 {
-    public class FolderEncryptor : IEncryptor
+    public class FolderEncryptor(byte[] salt, IPassword password, bool recurse, string? exclude) : IEncryptor
     {
-        private readonly byte[] _salt;
-        private readonly bool _recurse;
-        private readonly string[] _exclude;
+        private readonly string[] _exclude = exclude?.Split(',') ?? [];
 
-        public FolderEncryptor(byte[] salt, bool recurse, string exclude)
-        {
-            _salt = salt;
-            _recurse = recurse;
-            _exclude = exclude?.Split(',');
-        }
-
-        public async Task EncryptOrDecrypt(string pathname, string password)
+        public async Task EncryptOrDecrypt(string pathname)
         {
             var files = GetFiles(pathname);
             if (files.Count == 0)
@@ -55,28 +46,28 @@ namespace CyoEncrypt
 
             var encrypting = EnsureNoFileIsEncrypted(files);
 
-            await EncryptOrDecryptFiles(files, password, encrypting);
+            await EncryptOrDecryptFiles(files, encrypting);
         }
 
         private IReadOnlyList<string> GetFiles(string pathname)
         {
-            var searchOption = _recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            var searchOption = recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
             var files = Directory.GetFiles(pathname, "*.*", searchOption)
                 .Select(Path.GetFullPath);
 
-            if (_exclude == null)
+            if (_exclude.Length == 0)
                 return files.ToList();
 
             var filtered = files.Where(file =>
             {
-                var directory = Path.GetDirectoryName(file);
+                var directory = Path.GetDirectoryName(file) ?? "";
                 var folders = directory.Split(Path.DirectorySeparatorChar);
                 return !folders.Any(folder => _exclude.Contains(folder));
             });
             return filtered.ToList();
         }
 
-        private static bool EnsureNoFileIsEncrypted(IEnumerable<string> files)
+        private static bool EnsureNoFileIsEncrypted(IReadOnlyList<string> files)
         {
             var plaintext = false;
             var encrypted = false;
@@ -97,10 +88,10 @@ namespace CyoEncrypt
             return plaintext;
         }
 
-        private async Task EncryptOrDecryptFiles(IEnumerable<string> files, string password, bool encrypting)
+        private async Task EncryptOrDecryptFiles(IReadOnlyList<string> files, bool encrypting)
         {
-            var fileEncryptor = new FileEncryptor(_salt, true);
-            var remaining = files.Count();
+            var fileEncryptor = new FileEncryptor(salt, password, true);
+            var remaining = files.Count;
             var completed = 0;
             var errors = new List<string>();
             var stopwatch = Stopwatch.StartNew();
@@ -109,7 +100,7 @@ namespace CyoEncrypt
             {
                 try
                 {
-                    await fileEncryptor.EncryptOrDecrypt(file, password);
+                    await fileEncryptor.EncryptOrDecrypt(file);
                     ++completed;
                 }
                 catch

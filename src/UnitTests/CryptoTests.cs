@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,9 @@ namespace UnitTests
         {
             var password = FillBuffer(1024);
             var salt = FillBuffer(Crypto.Constants.SaltSize);
-            var aes = Crypto.CreateAes(password, salt);
+            var iv = Crypto.CreateIv(password, salt);
+            var key = Crypto.CreateKey(password, salt);
+            var aes = Crypto.CreateAes(iv, key);
 
             aes.IV.Length.Should().Be(Crypto.Constants.IvSize);
             aes.Key.Length.Should().Be(Crypto.Constants.KeySize);
@@ -91,13 +93,15 @@ namespace UnitTests
         {
             var password = FillBuffer(1024);
             var salt = FillBuffer(1024);
-            var aes = Crypto.CreateAes(password, salt);
+            var iv = Crypto.CreateIv(password, salt);
+            var key = Crypto.CreateKey(password, salt);
+            var aes = Crypto.CreateAes(iv, key);
 
             var plaintextLength = Crypto.Constants.BlockSize * numBlocks;
             var plaintextInput = FillBuffer(plaintextLength);
             var plaintextInputStream = new MemoryStream(plaintextInput);
             var ciphertextOutputStream = new MemoryStream();
-            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, plaintextLength, aes.CreateEncryptor());
+            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, aes.CreateEncryptor());
 
             var outputSize = Crypto.Constants.BlockSize * (numBlocks + 1); //plus a final block
             var ciphertextOutput = ciphertextOutputStream.ToArray();
@@ -105,7 +109,7 @@ namespace UnitTests
 
             var ciphertextInputStream = new MemoryStream(ciphertextOutput);
             var decryptedOutputStream = new MemoryStream();
-            await Crypto.Transform(ciphertextInputStream, decryptedOutputStream, true, plaintextLength, aes.CreateDecryptor());
+            await Crypto.Transform(ciphertextInputStream, decryptedOutputStream, true, aes.CreateDecryptor());
 
             var decryptedOutput = decryptedOutputStream.ToArray();
             decryptedOutput.Length.Should().Be(plaintextLength);
@@ -125,13 +129,15 @@ namespace UnitTests
         {
             var password = Enumerable.Range(0, 1024).Select(x => (byte)x).ToArray();
             var salt = Enumerable.Range(0, 1024).Select(x => (byte)(x * 3)).ToArray();
-            var aes = Crypto.CreateAes(password, salt);
+            var iv = Crypto.CreateIv(password, salt);
+            var key = Crypto.CreateKey(password, salt);
+            var aes = Crypto.CreateAes(iv, key);
 
             var plaintextLength = Crypto.Constants.BlockSize * numBlocks;
             var plaintextInput = Enumerable.Range(0, plaintextLength).Select(x => (byte)x).ToArray();
             var plaintextInputStream = new MemoryStream(plaintextInput);
             var ciphertextOutputStream = new MemoryStream();
-            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, plaintextLength, aes.CreateEncryptor());
+            await Crypto.Transform(plaintextInputStream, ciphertextOutputStream, false, aes.CreateEncryptor());
 
             var outputSize = Crypto.Constants.BlockSize * (numBlocks + 1); //plus a final block
             var ciphertextOutput = ciphertextOutputStream.ToArray();

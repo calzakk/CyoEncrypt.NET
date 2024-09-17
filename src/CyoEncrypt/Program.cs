@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,74 +23,80 @@
 // SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
 namespace CyoEncrypt
 {
-    class Program
+    public class Program
     {
-        static async Task<int> Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             Arguments arguments;
-            var password = string.Empty;
             try
             {
                 arguments = Arguments.Parse(args);
-
-                if (arguments.Help)
-                {
-                    Console.WriteLine("Usage:\n\n"
-                        + "  CyoEncrypt <pathname> [<password>] [--no-confirm]\n"
-                        + "  CyoEncrypt <path> [<password>] [--no-confirm] [-r|--recurse] [--exclude=folder,...]");
-                    return 2;
-                }
-
-                if (string.IsNullOrEmpty(arguments.Pathname))
-                {
-                    Console.WriteLine("Missing file or folder path");
-                    return 2;
-                }
-
-                password = arguments.Password;
-                if (string.IsNullOrEmpty(password))
-                {
-                    Console.Write("Password: ");
-                    password = Console.ReadLine();
-                }
-
-                if (!arguments.NoConfirm)
-                {
-                    Console.Write("Confirm: ");
-                    var confirm = Console.ReadLine();
-                    if (password != confirm)
-                    {
-                        Console.WriteLine("Passwords do not match!");
-                        return 3;
-                    }
-                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
+                return 1;
+            }
+
+            if (arguments.Help)
+            {
+                Console.WriteLine("Usage:\n"
+                    + "  CyoEncrypt pathname [password] [options]\n"
+                    + "\n"
+                    + "Where:\n"
+                    + $"  pathname         Specifies a file or {Folder}.\n"
+                    + "  password         Encryption or decryption password.\n"
+                    + "\n"
+                    + "Options:\n"
+                    + "  --no-confirm     Do not confirm the password.\n"
+                    + "Options (files):\n"
+                    + "  -e, --reencrypt  Remember the decryption password for subsequent re-encryption.\n"
+                    + $"Options ({Folders}):\n"
+                    + $"  -r, --recurse    Recurse into sub{Folders}.\n"
+                    + $"  --exclude={Folder},...\n"
+                    + $"                   Exclude named sub{Folders}.\n");
                 return 2;
+            }
+
+            if (string.IsNullOrEmpty(arguments.Pathname))
+            {
+                Console.WriteLine("Missing file or folder path");
+                return 1;
             }
 
             var salt = GetSalt();
 
+            var password = new Password(arguments.Password, arguments.NoConfirm, arguments.ReEncrypt, salt);
+
             var fileInfo = new FileInfo(arguments.Pathname);
-            var encryptor = fileInfo.Attributes.HasFlag(FileAttributes.Directory)
-                ? new FolderEncryptor(salt, arguments.Recurse, arguments.Exclude) as IEncryptor
-                : new FileEncryptor(salt, false);
+            var dirInfo = new DirectoryInfo(arguments.Pathname);
+            if (!fileInfo.Exists && !dirInfo.Exists)
+            {
+                Console.WriteLine($"File or {Folder} not found!");
+                return 1;
+            }
+
+            if (ArgumentsAreIncompatible(arguments, dirInfo.Exists))
+                return 1;
+
+            var encryptor = dirInfo.Exists
+                ? new FolderEncryptor(salt, password, arguments.Recurse, arguments.Exclude) as IEncryptor
+                : new FileEncryptor(salt, password, false);
 
             try
             {
-                await encryptor.EncryptOrDecrypt(arguments.Pathname, password);
+                await encryptor.EncryptOrDecrypt(arguments.Pathname);
                 return 0;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("ERROR: " + ex.Message);
+                Console.WriteLine(ex.Message);
                 return 1;
             }
         }
@@ -101,14 +107,14 @@ namespace CyoEncrypt
             const string filename = "CyoEncrypt.data";
 
             var applicationData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var applicationDataPath = Path.Combine(applicationData, subfolder);
-            var applicationDataPathname = Path.Combine(applicationDataPath, filename);
+            var applicationDataPath = Path.Join(applicationData, subfolder);
+            var applicationDataPathname = Path.Join(applicationDataPath, filename);
             if (File.Exists(applicationDataPathname))
                 return File.ReadAllBytes(applicationDataPathname);
 
             var executingAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
             var currentFolder = Path.GetDirectoryName(executingAssembly);
-            var currentFolderPathname = Path.Combine(currentFolder, subfolder, filename);
+            var currentFolderPathname = Path.Join(currentFolder, subfolder, filename);
             if (File.Exists(currentFolderPathname))
                 return File.ReadAllBytes(currentFolderPathname);
 
@@ -129,5 +135,32 @@ namespace CyoEncrypt
 
             return salt;
         }
+
+        private static bool ArgumentsAreIncompatible(Arguments arguments, bool isFolder)
+        {
+            var errors = new List<string>();
+
+            if (isFolder)
+            {
+                if (arguments.ReEncrypt)
+                    errors.Add($"--reencrypt cannot be used with {Folders}");
+            }
+            else
+            {
+                if (arguments.Recurse)
+                    errors.Add("--recurse cannot be used with files");
+
+                if (!string.IsNullOrEmpty(arguments.Exclude))
+                    errors.Add("--exclude cannot be used with files");
+            }
+
+            foreach (var error in errors)
+                Console.WriteLine(error);
+
+            return errors.Count >= 1;
+        }
+
+        private static string Folder => OperatingSystem.IsWindows() ? "folder" : "directory";
+        private static string Folders => OperatingSystem.IsWindows() ? "folders" : "directories";
     }
 }

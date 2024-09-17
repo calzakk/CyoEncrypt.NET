@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,65 +24,86 @@
 
 using System;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace CyoEncrypt
 {
-    public class FileEncryptor : IEncryptor
+    public class FileEncryptor(byte[] salt, IPassword password, bool quiet) : IEncryptor
     {
         public static class Constants
         {
             public const string EncryptedExtension = ".encrypted";
         }
 
-        private readonly byte[] _salt;
-        private readonly bool _quiet;
-
-        public FileEncryptor(byte[] salt, bool quiet)
-        {
-            _salt = salt;
-            _quiet = quiet;
-        }
-
-        public async Task EncryptOrDecrypt(string pathname, string password)
+        public async Task EncryptOrDecrypt(string pathname)
         {
             var isEncrypted = pathname.EndsWith(Constants.EncryptedExtension);
 
-            string outputPathname;
-            if (isEncrypted)
-                outputPathname = pathname.Substring(0, pathname.Length - Constants.EncryptedExtension.Length);
-            else
-                outputPathname = pathname + Constants.EncryptedExtension;
+            var basePathname = GetBasePathname(pathname, isEncrypted);
+            var outputPathname = GetOutputPathname(pathname, isEncrypted);
 
-            await TransformFile(pathname, outputPathname, password, isEncrypted);
+            byte[] iv = [];
+            byte[] key = [];
+            if (!isEncrypted && password.ReEncrypt)
+            {
+                var saved = await password.GetSavedKey(basePathname);
+                if (saved is not null)
+                    (iv, key) = (saved.Value.iv, saved.Value.key);
+            }
+            if (iv.Length == 0)
+            {
+                var passwordBytes = password.GetPassword();
+                iv = Crypto.CreateIv(passwordBytes, salt);
+                key = Crypto.CreateKey(passwordBytes, salt);
+            }
+
+            await TransformFile(pathname, outputPathname, iv, key, isEncrypted);
 
             DeleteFile(pathname);
+
+            if (!isEncrypted)
+                password.DeleteSavedKey(basePathname);
+            else if (password.ReEncrypt)
+                await password.SaveKey(basePathname, iv, key);
         }
 
-        private async Task TransformFile(string inputPathname, string outputPathname, string password, bool isEncrypted)
+        private static string GetBasePathname(string pathname, bool isEncrypted)
         {
+            return isEncrypted
+                ? pathname[..^Constants.EncryptedExtension.Length]
+                : pathname;
+        }
+
+        private static string GetOutputPathname(string pathname, bool isEncrypted)
+        {
+            var outputPathname = isEncrypted
+                ? pathname[..^Constants.EncryptedExtension.Length]
+                : pathname + Constants.EncryptedExtension;
+
             if (File.Exists(outputPathname))
                 throw new Exception($"Output file already exists: {Path.GetFileName(outputPathname)}");
 
-            var passwordBytes = Encoding.UTF8.GetBytes(password);
+            return outputPathname;
+        }
 
-            using var aes = Crypto.CreateAes(passwordBytes, _salt);
+        private async Task TransformFile(string inputPathname, string outputPathname, byte[] iv, byte[] key, bool isEncrypted)
+        {
+            using var aes = Crypto.CreateAes(iv, key);
 
             var fileLength = new FileInfo(inputPathname).Length;
 
-            using var input = File.OpenRead(inputPathname);
-            using var output = File.Create(outputPathname);
+            await using var input = File.OpenRead(inputPathname);
+            await using var output = File.Create(outputPathname);
 
             var header = GetOrCreateHeader(input, output, isEncrypted, fileLength);
 
             var cryptoTransform = isEncrypted ? aes.CreateDecryptor() : aes.CreateEncryptor();
 
-            await Crypto.Transform(input, output, isEncrypted, header.FileLength, cryptoTransform);
+            await Crypto.Transform(input, output, isEncrypted, cryptoTransform);
 
             ValidateOutputLength(output, isEncrypted, header);
 
-            if (!_quiet)
+            if (!quiet)
                 Console.WriteLine($"Successfully {(isEncrypted ? "decrypted" : "encrypted")}");
         }
 
@@ -104,8 +125,8 @@ namespace CyoEncrypt
                 expectedLength = header.FileLength;
             else
             {
-                var headerSize = FileHeader.Constants.HeaderLength;
-                var blockSize = Crypto.Constants.BlockSize;
+                const int headerSize = FileHeader.Constants.HeaderLength;
+                const int blockSize = Crypto.Constants.BlockSize;
                 expectedLength = headerSize + blockSize * ((header.FileLength / blockSize) + 1); //+1 because there's always an extra block
             }
 

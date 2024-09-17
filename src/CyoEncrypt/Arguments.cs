@@ -2,7 +2,7 @@
 
 // The MIT License (MIT)
 
-// Copyright (c) 2020-2021 Graham Bull
+// Copyright (c) 2020-2024 Graham Bull
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,12 +29,13 @@ namespace CyoEncrypt
 {
     public class Arguments
     {
-        public bool Help { get; set; } = false;
-        public bool Recurse { get; set; } = false;
-        public bool NoConfirm { get; set; } = false;
-        public string Pathname { get; set; } = null;
-        public string Password { get; set; } = null;
-        public string Exclude { get; set; } = null;
+        public bool Help { get; private set; }
+        public bool Recurse { get; private set; }
+        public bool NoConfirm { get; private set; }
+        public bool ReEncrypt { get; private set; }
+        public string? Pathname { get; private set; }
+        public string? Password { get; private set; }
+        public string? Exclude { get; private set; }
 
         public static Arguments Parse(string[] args)
         {
@@ -73,6 +74,12 @@ namespace CyoEncrypt
                     continue;
                 }
 
+                if (MatchArg(larg, "reencrypt", 'e'))
+                {
+                    arguments.ReEncrypt = true;
+                    continue;
+                }
+
                 if (!arg.StartsWith('-'))
                 {
                     if (string.IsNullOrEmpty(arguments.Pathname))
@@ -108,7 +115,7 @@ namespace CyoEncrypt
             return false;
         }
 
-        private static bool MatchArg(string arg, string option, out string value)
+        private static bool MatchArg(string arg, string option, out string? value)
         {
             var prefix = $"--{option}=";
             if (arg.StartsWith(prefix))
