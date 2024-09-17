@@ -25,18 +25,18 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace CyoEncrypt
 {
-    public class Password(string? password, bool noConfirm, bool reEncrypt) : IPassword
+    public class Password(string? password, bool noConfirm, bool reEncrypt, byte[] salt) : IPassword
     {
         private static class Constants
         {
             public const string Preamble = "CYO\x1";
         }
-
-        private static readonly (byte[], byte[]) NoSavedKey = ([], []);
 
         private string? _password = password;
         private bool _confirmed;
@@ -63,7 +63,7 @@ namespace CyoEncrypt
             return Encoding.UTF8.GetBytes(_password);
         }
         
-        public (byte[], byte[])? GetSavedKey(string pathname)
+        public async Task<(byte[], byte[])?> GetSavedKey(string pathname)
         {
             var passwordFile = MakePathnameForSavedPassword(pathname);
             if (!File.Exists(passwordFile))
@@ -74,8 +74,11 @@ namespace CyoEncrypt
             if (fileInfo.Length != expectedSize)
                 return null;
 
-            var content = File.ReadAllBytes(passwordFile);
-            using var memoryStream = new MemoryStream(content);
+            var content = await File.ReadAllBytesAsync(passwordFile);
+            using var contentStream = new MemoryStream(content);
+            var decryptedBytes = await Decrypt(contentStream, GetPasswordForSavedPassword(passwordFile));
+
+            using var memoryStream = new MemoryStream(decryptedBytes);
             using var binaryReader = new BinaryReader(memoryStream);
 
             var preamble = new string(binaryReader.ReadChars(Constants.Preamble.Length));
@@ -95,7 +98,7 @@ namespace CyoEncrypt
             return (iv, key);
         }
 
-        public void SaveKey(string pathname, byte[] iv, byte[] key)
+        public async Task SaveKey(string pathname, byte[] iv, byte[] key)
         {
             var passwordFile = MakePathnameForSavedPassword(pathname);
             if (File.Exists(passwordFile))
@@ -104,16 +107,16 @@ namespace CyoEncrypt
                 return;
             }
             
-            using var memoryStream = new MemoryStream();
-            using var binaryWriter = new BinaryWriter(memoryStream);
+            await using var memoryStream = new MemoryStream();
+            await using var binaryWriter = new BinaryWriter(memoryStream);
             binaryWriter.Write(Constants.Preamble.ToCharArray());
             binaryWriter.Write(iv.Length);
             binaryWriter.Write(iv);
             binaryWriter.Write(key.Length);
             binaryWriter.Write(key);
             binaryWriter.Flush();
-            var bytes = memoryStream.ToArray();
-            File.WriteAllBytes(passwordFile, bytes);
+            var encryptedBytes = await Encrypt(memoryStream, GetPasswordForSavedPassword(passwordFile));
+            await File.WriteAllBytesAsync(passwordFile, encryptedBytes);
 
             var attributes = File.GetAttributes(passwordFile);
             File.SetAttributes(passwordFile, attributes | FileAttributes.Hidden);
@@ -138,6 +141,33 @@ namespace CyoEncrypt
         }
 
         private static int GetExpectedSize()
-            => Constants.Preamble.Length + (sizeof(int) * 2) + Crypto.Constants.IvSize + Crypto.Constants.KeySize;
+        {
+            var plaintext = Constants.Preamble.Length + (sizeof(int) * 2) + Crypto.Constants.IvSize + Crypto.Constants.KeySize;
+            const int blockSize = Crypto.Constants.BlockSize;
+            return ((plaintext + blockSize - 1) / blockSize) * blockSize;
+        }
+
+        private static byte[] GetPasswordForSavedPassword(string passwordFile)
+            => Encoding.UTF8.GetBytes(Path.GetFileName(passwordFile));
+
+        private Task<byte[]> Encrypt(Stream stream, byte[] passwordBytes)
+            => Transform(stream, passwordBytes, true);
+
+        private Task<byte[]> Decrypt(Stream stream, byte[] passwordBytes)
+            => Transform(stream, passwordBytes, false);
+
+        private async Task<byte[]> Transform(Stream stream, byte[] passwordBytes, bool encrypt)
+        {
+            stream.Position = 0;
+
+            var iv = Crypto.CreateIv(passwordBytes, salt);
+            var key = Crypto.CreateKey(passwordBytes, salt);
+            using var aes = Crypto.CreateAes(iv, key);
+            var cryptoTransform = encrypt ? aes.CreateEncryptor() : aes.CreateDecryptor();
+
+            using var output = new MemoryStream();
+            await Crypto.Transform(stream, output, false, cryptoTransform);
+            return output.ToArray();
+        } 
     }
 }

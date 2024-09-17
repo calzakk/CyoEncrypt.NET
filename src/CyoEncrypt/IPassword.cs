@@ -22,6 +22,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+using System.Threading.Tasks;
+
 namespace CyoEncrypt
 {
     public interface IPassword
@@ -30,9 +32,9 @@ namespace CyoEncrypt
 
         byte[] GetPassword();
 
-        (byte[] iv, byte[] key)? GetSavedKey(string pathname);
+        Task<(byte[] iv, byte[] key)?> GetSavedKey(string pathname);
 
-        void SaveKey(string pathname, byte[] iv, byte[] key);
+        Task SaveKey(string pathname, byte[] iv, byte[] key);
 
         void DeleteSavedKey(string pathname);
     }

@@ -46,7 +46,7 @@ namespace CyoEncrypt
             byte[] key = [];
             if (!isEncrypted && password.ReEncrypt)
             {
-                var saved = password.GetSavedKey(basePathname);
+                var saved = await password.GetSavedKey(basePathname);
                 if (saved is not null)
                     (iv, key) = (saved.Value.iv, saved.Value.key);
             }
@@ -64,7 +64,7 @@ namespace CyoEncrypt
             if (!isEncrypted)
                 password.DeleteSavedKey(basePathname);
             else if (password.ReEncrypt)
-                password.SaveKey(basePathname, iv, key);
+                await password.SaveKey(basePathname, iv, key);
         }
 
         private static string GetBasePathname(string pathname, bool isEncrypted)

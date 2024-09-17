@@ -72,7 +72,7 @@ namespace CyoEncrypt
 
             var salt = GetSalt();
 
-            var password = new Password(arguments.Password, arguments.NoConfirm, arguments.ReEncrypt);
+            var password = new Password(arguments.Password, arguments.NoConfirm, arguments.ReEncrypt, salt);
 
             var fileInfo = new FileInfo(arguments.Pathname);
             var dirInfo = new DirectoryInfo(arguments.Pathname);
